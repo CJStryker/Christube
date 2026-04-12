@@ -47,7 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #050505;
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -55,7 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
         
         .auth-container {
-            background: white;
+            background: #101010;
             padding: 2rem;
             border-radius: 10px;
             box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
@@ -66,7 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         h2 {
             text-align: center;
             margin-bottom: 2rem;
-            color: #333;
+            color: #00ff66;
             font-weight: 600;
         }
         
@@ -77,7 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         label {
             display: block;
             margin-bottom: 0.5rem;
-            color: #555;
+            color: #87fcb0;
             font-weight: 500;
         }
         
@@ -85,7 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         input[type="password"] {
             width: 100%;
             padding: 0.75rem;
-            border: 2px solid #e1e1e1;
+            border: 1px solid #7a0000;
             border-radius: 5px;
             font-size: 1rem;
             transition: border-color 0.3s ease;
@@ -94,14 +94,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         input[type="text"]:focus,
         input[type="password"]:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: #7a0000;
         }
         
         .btn {
             width: 100%;
             padding: 0.75rem;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            background: #7a0000;
+            color: #0a0a0a;
             border: none;
             border-radius: 5px;
             font-size: 1rem;
@@ -129,7 +129,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
         
         .auth-links a {
-            color: #667eea;
+            color: #00ff66;
             text-decoration: none;
             font-weight: 500;
         }

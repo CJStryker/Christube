@@ -1,212 +1,131 @@
 <?php
-// Hardcoded user info for testing purposes
-$user_id = '0001';
-$username = 'Zesty';
+require_once 'config.php';
+requireLogin();
 
-// Define a simple directory for user uploads
-// You can change this as needed
-$target_dir = 'uploads/';
+function toBytes(string $value): int {
+    $value = trim($value);
+    if ($value === '') {
+        return 0;
+    }
 
-// Initialize upload flag and message variables
-$uploadOk = 1;
-$message = '';
-$messageType = '';
+    $unit = strtolower($value[strlen($value) - 1]);
+    $number = (float)$value;
 
-// Check if form was submitted
-if (isset($_POST["submit"])) {
-    // Get the file extension of the uploaded file
-    $imageFileType = strtolower(pathinfo($_FILES["fileToUpload"]["name"], PATHINFO_EXTENSION));
-    
-    // Check if file is an actual image
-    $check = getimagesize($_FILES["fileToUpload"]["tmp_name"]);
-    if ($check !== false) {
-        $message .= "File is an image - " . $check["mime"] . ".<br>";
-        $messageType = 'success';
-    } else {
-        $message .= "File is not an image.<br>";
-        $messageType = 'error';
-        $uploadOk = 0;
+    switch ($unit) {
+        case 'g':
+            return (int)($number * 1024 * 1024 * 1024);
+        case 'm':
+            return (int)($number * 1024 * 1024);
+        case 'k':
+            return (int)($number * 1024);
+        default:
+            return (int)$number;
     }
-    
-    // Create unique filename to avoid overwriting existing files
-    $target_file = $target_dir . uniqid() . '.' . $imageFileType;
-    
-    // Check file size (limit: 5MB)
-    if ($_FILES["fileToUpload"]["size"] > 5000000) {
-        $message .= "Sorry, your file is too large.<br>";
-        $messageType = 'error';
-        $uploadOk = 0;
-    }
-    
-    // Allow certain file formats
-    $allowed_types = ["jpg", "jpeg", "png", "gif"];
-    if (!in_array($imageFileType, $allowed_types)) {
-        $message .= "Sorry, only JPG, JPEG, PNG & GIF files are allowed.<br>";
-        $messageType = 'error';
-        $uploadOk = 0;
-    }
-    
-    // Attempt to upload if all checks are passed
-    if ($uploadOk == 1) {
-        if (move_uploaded_file($_FILES["fileToUpload"]["tmp_name"], $target_file)) {
-            $message .= "The file <strong>" . htmlspecialchars(basename($_FILES["fileToUpload"]["name"])) . "</strong> has been uploaded successfully!<br>";
-            $messageType = 'success';
-            $uploaded_image = $target_file;
-        } else {
-            $message .= "Sorry, there was an error uploading your file.<br>";
-            $messageType = 'error';
-        }
-    }
-} else {
-    $message = "No file uploaded.<br>";
-    $messageType = 'error';
 }
+
+
+function generateUniqueSlug(PDO $pdo): string {
+    $stmt = $pdo->prepare('SELECT id FROM videos WHERE slug = ? LIMIT 1');
+    for ($i = 0; $i < 10; $i++) {
+        $slug = bin2hex(random_bytes(4));
+        $stmt->execute([$slug]);
+        if (!$stmt->fetch()) {
+            return $slug;
+        }
+    }
+
+    return bin2hex(random_bytes(6));
+}
+
+function failUpload(string $message): void {
+    $_SESSION['flash'] = ['ok' => false, 'msg' => $message];
+    header('Location: index.php');
+    exit;
+}
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    header('Location: index.php');
+    exit;
+}
+
+$contentLength = isset($_SERVER['CONTENT_LENGTH']) ? (int)$_SERVER['CONTENT_LENGTH'] : 0;
+$postMaxSize = toBytes((string)ini_get('post_max_size'));
+if ($postMaxSize > 0 && $contentLength > $postMaxSize) {
+    failUpload('Upload failed before PHP could read the file: active post_max_size is ' . ini_get('post_max_size') . '. Increase server/PHP limits (php.ini, FPM pool, or webserver config) to at least 160M post and 150M upload.');
+}
+
+$title = trim($_POST['title'] ?? '');
+$description = trim($_POST['description'] ?? '');
+$visibility = $_POST['visibility'] ?? 'public';
+
+$allowedVisibility = ['public', 'private'];
+if ($title === '' || !in_array($visibility, $allowedVisibility, true)) {
+    failUpload('Invalid form input. Please include title and a valid privacy setting.');
+}
+
+if (!isset($_FILES['videoFile'])) {
+    failUpload('No video file was received by the server. This usually means the file exceeded server upload limits.');
+}
+
+$file = $_FILES['videoFile'];
+if (!isset($file['error']) || (int)$file['error'] !== UPLOAD_ERR_OK) {
+    $errors = [
+        UPLOAD_ERR_INI_SIZE => 'Upload failed: file exceeds active upload_max_filesize (' . ini_get('upload_max_filesize') . '). Increase server/PHP limits to at least 150M.',
+        UPLOAD_ERR_FORM_SIZE => 'Upload failed: file exceeds HTML form MAX_FILE_SIZE limit.',
+        UPLOAD_ERR_PARTIAL => 'Upload failed: file was only partially uploaded. This can happen with unstable/slow Tor circuits. Try again.',
+        UPLOAD_ERR_NO_FILE => 'Upload failed: no file selected.',
+        UPLOAD_ERR_NO_TMP_DIR => 'Upload failed: server temporary folder is missing.',
+        UPLOAD_ERR_CANT_WRITE => 'Upload failed: server could not write uploaded data to disk.',
+        UPLOAD_ERR_EXTENSION => 'Upload blocked by a server extension.',
+    ];
+    $errorCode = (int)($file['error'] ?? -1);
+    failUpload($errors[$errorCode] ?? ('Upload failed with unknown error code: ' . $errorCode));
+}
+
+$maxAppSize = 150 * 1024 * 1024; // 150MB app-level cap
+if ($file['size'] > $maxAppSize) {
+    failUpload('File is too large for this app (max 150MB).');
+}
+
+$ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+$allowedExt = ['mp4', 'webm', 'ogg', 'mov'];
+if (!in_array($ext, $allowedExt, true)) {
+    failUpload('Invalid file type. Allowed: mp4, webm, ogg, mov.');
+}
+
+$finfo = finfo_open(FILEINFO_MIME_TYPE);
+$mime = finfo_file($finfo, $file['tmp_name']);
+finfo_close($finfo);
+$allowedMime = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'];
+if (!in_array($mime, $allowedMime, true)) {
+    failUpload('File does not appear to be a valid video (detected MIME: ' . htmlspecialchars((string)$mime) . ').');
+}
+
+$userId = (int)$_SESSION['user_id'];
+$uploadDir = getUserUploadDir($userId);
+if (!is_dir($uploadDir)) {
+    failUpload('Upload directory is missing: ' . $uploadDir);
+}
+
+if (!is_writable($uploadDir)) {
+    failUpload('Upload directory is not writable by the web server user: ' . $uploadDir . '. Fix folder ownership/permissions.');
+}
+
+$basename = bin2hex(random_bytes(16)) . '.' . $ext;
+$absolutePath = $uploadDir . $basename;
+$relativePath = 'uploads/videos/user_' . $userId . '/' . $basename;
+
+if (!move_uploaded_file($file['tmp_name'], $absolutePath)) {
+    $lastError = error_get_last();
+    $reason = $lastError['message'] ?? 'unknown filesystem error';
+    failUpload('Failed to save uploaded file on the server. Reason: ' . $reason);
+}
+
+$slug = generateUniqueSlug($pdo);
+$stmt = $pdo->prepare('INSERT INTO videos (user_id, slug, title, description, file_path, visibility) VALUES (?, ?, ?, ?, ?, ?)');
+$stmt->execute([$userId, $slug, $title, $description, $relativePath, $visibility]);
+
+$_SESSION['flash'] = ['ok' => true, 'msg' => 'Video uploaded successfully.'];
+header('Location: index.php');
+exit;
 ?>
-
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Upload Result</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            margin: 0;
-            padding: 20px;
-        }
-
-        .header {
-            background: rgba(255, 255, 255, 0.95);
-            padding: 1rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            margin: -20px -20px 40px -20px;
-        }
-
-        .user-info {
-            color: #333;
-            font-weight: 600;
-        }
-
-        .logout-btn {
-            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
-            color: white;
-            padding: 0.5rem 1rem;
-            text-decoration: none;
-            border-radius: 5px;
-            font-weight: 500;
-            transition: transform 0.2s ease;
-        }
-
-        .logout-btn:hover {
-            transform: translateY(-2px);
-        }
-
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-            background: rgba(255, 255, 255, 0.95);
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
-            backdrop-filter: blur(10px);
-        }
-
-        h1 {
-            text-align: center;
-            color: #333;
-            margin-bottom: 30px;
-        }
-
-        .message {
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-
-        .success {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .error {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-
-        .uploaded-image {
-            text-align: center;
-            margin: 20px 0;
-        }
-
-        .uploaded-image img {
-            max-width: 100%;
-            max-height: 400px;
-            border-radius: 8px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-        }
-
-        .action-buttons {
-            display: flex;
-            gap: 15px;
-            margin-top: 30px;
-        }
-
-        .btn {
-            flex: 1;
-            padding: 12px 20px;
-            text-decoration: none;
-            border-radius: 8px;
-            text-align: center;
-            font-weight: 600;
-            transition: transform 0.2s ease;
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-
-        .btn-secondary {
-            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
-            color: white;
-        }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <div class="user-info">Welcome, <?php echo htmlspecialchars($username); ?>!</div>
-        <a href="logout.php" class="logout-btn">Logout</a>
-    </div>
-
-    <div class="container">
-        <h1>Upload Result</h1>
-        
-        <div class="message <?php echo $messageType; ?>">
-            <?php echo $message; ?>
-        </div>
-
-        <?php if ($messageType == 'success' && isset($uploaded_image)): ?>
-        <div class="uploaded-image">
-            <img src="<?php echo $uploaded_image; ?>" alt="Uploaded Image">
-        </div>
-        <?php endif; ?>
-
-        <div class="action-buttons">
-            <a href="index.php" class="btn btn-primary">Upload Another Image</a>
-            <a href="uploads/" class="btn btn-secondary">View My Gallery</a>
-        </div>
-    </div>
-</body>
-</html>
