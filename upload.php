@@ -23,6 +23,20 @@ function toBytes(string $value): int {
     }
 }
 
+
+function generateUniqueSlug(PDO $pdo): string {
+    $stmt = $pdo->prepare('SELECT id FROM videos WHERE slug = ? LIMIT 1');
+    for ($i = 0; $i < 10; $i++) {
+        $slug = bin2hex(random_bytes(4));
+        $stmt->execute([$slug]);
+        if (!$stmt->fetch()) {
+            return $slug;
+        }
+    }
+
+    return bin2hex(random_bytes(6));
+}
+
 function failUpload(string $message): void {
     $_SESSION['flash'] = ['ok' => false, 'msg' => $message];
     header('Location: index.php');
@@ -107,8 +121,9 @@ if (!move_uploaded_file($file['tmp_name'], $absolutePath)) {
     failUpload('Failed to save uploaded file on the server. Reason: ' . $reason);
 }
 
-$stmt = $pdo->prepare('INSERT INTO videos (user_id, title, description, file_path, visibility) VALUES (?, ?, ?, ?, ?)');
-$stmt->execute([$userId, $title, $description, $relativePath, $visibility]);
+$slug = generateUniqueSlug($pdo);
+$stmt = $pdo->prepare('INSERT INTO videos (user_id, slug, title, description, file_path, visibility) VALUES (?, ?, ?, ?, ?, ?)');
+$stmt->execute([$userId, $slug, $title, $description, $relativePath, $visibility]);
 
 $_SESSION['flash'] = ['ok' => true, 'msg' => 'Video uploaded successfully.'];
 header('Location: index.php');

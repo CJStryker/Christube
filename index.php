@@ -6,10 +6,14 @@ $currentUserId = (int)$_SESSION['user_id'];
 $currentUsername = $_SESSION['username'];
 
 $stmt = $pdo->prepare(
-    "SELECT v.id, v.user_id, v.title, v.description, v.file_path, v.visibility, v.uploaded_at, u.username
+    "SELECT v.id, v.user_id, v.slug, v.title, v.description, v.file_path, v.visibility, v.uploaded_at, u.username,
+            SUM(CASE WHEN vr.reaction = 'like' THEN 1 ELSE 0 END) AS likes,
+            SUM(CASE WHEN vr.reaction = 'dislike' THEN 1 ELSE 0 END) AS dislikes
      FROM videos v
      INNER JOIN users u ON u.id = v.user_id
+     LEFT JOIN video_reactions vr ON vr.video_id = v.id
      WHERE v.visibility = 'public' OR v.user_id = ?
+     GROUP BY v.id
      ORDER BY v.uploaded_at DESC
      LIMIT 30"
 );
@@ -26,20 +30,19 @@ unset($_SESSION['flash']);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Christube</title>
     <style>
-        body { margin: 0; font-family: Arial, sans-serif; background: #f6f7fb; color: #1c1f2a; }
-        .topbar { background: #1f3fb3; color: #fff; padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; }
-        .topbar a { color: #fff; text-decoration: none; margin-left: 12px; }
+        body { margin: 0; font-family: Arial, sans-serif; background: #050505; color: #00ff66; }
+        .topbar { background: #7a0000; color: #0a0a0a; padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; }
+        .topbar a { color: #0a0a0a; text-decoration: none; margin-left: 12px; font-weight: bold; }
         .wrap { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
-        .panel { background: #fff; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.08); padding: 16px; margin-bottom: 18px; }
+        .panel { background: #101010; border-radius: 10px; border: 1px solid #7a0000; padding: 16px; margin-bottom: 18px; }
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
-        input, textarea, select { width: 100%; box-sizing: border-box; padding: 10px; margin-top: 6px; margin-bottom: 12px; border: 1px solid #ced4df; border-radius: 6px; }
-        button { background: #1f3fb3; color: #fff; border: 0; border-radius: 6px; padding: 10px 14px; cursor: pointer; }
-        .muted { color: #586071; font-size: 14px; }
+        input, textarea, select { width: 100%; box-sizing: border-box; padding: 10px; margin-top: 6px; margin-bottom: 12px; border: 1px solid #7a0000; border-radius: 6px; background:#000; color:#00ff66; }
+        button { background: #7a0000; color: #0a0a0a; border: 0; border-radius: 6px; padding: 10px 14px; cursor: pointer; font-weight:bold; }
+        .muted { color: #87fcb0; font-size: 14px; }
         video { width: 100%; border-radius: 8px; background: #000; max-height: 220px; }
-        .flash { padding: 10px 12px; border-radius: 8px; margin-bottom: 12px; }
-        .ok { background: #e8f8ec; border: 1px solid #b7e5c4; }
-        .err { background: #fdecec; border: 1px solid #f7b8b8; }
-        .tiny { font-size: 12px; }
+        .flash { padding: 10px 12px; border-radius: 8px; margin-bottom: 12px; background: #1c1c1c; border: 1px solid #7a0000; }
+        .tiny { font-size: 12px; color: #87fcb0; }
+        a { color: #00ff66; }
     </style>
 </head>
 <body>
@@ -54,7 +57,7 @@ unset($_SESSION['flash']);
 
     <div class="wrap">
         <?php if ($flash): ?>
-            <div class="flash <?php echo $flash['ok'] ? 'ok' : 'err'; ?>"><?php echo htmlspecialchars($flash['msg']); ?></div>
+            <div class="flash"><?php echo htmlspecialchars($flash['msg']); ?></div>
         <?php endif; ?>
 
         <div class="panel">
@@ -73,7 +76,6 @@ unset($_SESSION['flash']);
                 </select>
 
                 <label>Video file (mp4, webm, mov, ogg)</label>
-
                 <input type="file" name="videoFile" accept="video/mp4,video/webm,video/ogg,video/quicktime,.mp4,.webm,.ogg,.mov" required>
 
                 <button type="submit" name="submit">Upload Video</button>
@@ -82,7 +84,7 @@ unset($_SESSION['flash']);
 
         <div class="panel">
             <h2>Recently uploaded videos</h2>
-            <p class="muted">Shows all public uploads and your private uploads, newest first.</p>
+            <p class="muted">Newest uploads first.</p>
 
             <?php if (!$videos): ?>
                 <p class="muted">No videos uploaded yet.</p>
@@ -95,6 +97,9 @@ unset($_SESSION['flash']);
                             <p class="muted"><?php echo nl2br(htmlspecialchars($video['description'] ?? '')); ?></p>
                             <p class="tiny">By <?php echo htmlspecialchars($video['username']); ?> · <?php echo htmlspecialchars($video['uploaded_at']); ?></p>
                             <p class="tiny">Visibility: <strong><?php echo htmlspecialchars($video['visibility']); ?></strong></p>
+                            <p class="tiny">👍 <?php echo (int)$video['likes']; ?> · 👎 <?php echo (int)$video['dislikes']; ?></p>
+                            <p><a href="v.php?s=<?php echo urlencode($video['slug']); ?>">Watch page</a></p>
+                            <p class="tiny">Short link: <a href="v.php?s=<?php echo urlencode($video['slug']); ?>">/v.php?s=<?php echo htmlspecialchars($video['slug']); ?></a></p>
 
                             <?php if ((int)$video['user_id'] === $currentUserId): ?>
                                 <form action="update_visibility.php" method="post">

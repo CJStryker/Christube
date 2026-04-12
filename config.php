@@ -65,6 +65,7 @@ function ensureSchema(PDO $pdo): void {
         "CREATE TABLE IF NOT EXISTS videos (
             id INT AUTO_INCREMENT PRIMARY KEY,
             user_id INT NOT NULL,
+            slug VARCHAR(16) NOT NULL UNIQUE,
             title VARCHAR(150) NOT NULL,
             description TEXT NULL,
             file_path VARCHAR(255) NOT NULL,
@@ -75,6 +76,45 @@ function ensureSchema(PDO $pdo): void {
             CONSTRAINT fk_videos_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
     );
+
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS video_comments (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            video_id INT NOT NULL,
+            user_id INT NOT NULL,
+            comment TEXT NOT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_comments_video (video_id),
+            CONSTRAINT fk_comments_video FOREIGN KEY (video_id) REFERENCES videos(id) ON DELETE CASCADE,
+            CONSTRAINT fk_comments_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+    );
+
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS video_reactions (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            video_id INT NOT NULL,
+            user_id INT NOT NULL,
+            reaction ENUM('like','dislike') NOT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY uniq_video_user_reaction (video_id, user_id),
+            INDEX idx_reactions_video (video_id),
+            CONSTRAINT fk_reactions_video FOREIGN KEY (video_id) REFERENCES videos(id) ON DELETE CASCADE,
+            CONSTRAINT fk_reactions_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+    );
+
+    // Schema upgrades for existing installs.
+    $hasSlug = $pdo->query("SHOW COLUMNS FROM videos LIKE 'slug'")->fetch();
+    if (!$hasSlug) {
+        $pdo->exec("ALTER TABLE videos ADD COLUMN slug VARCHAR(16) NULL UNIQUE AFTER user_id");
+        $rows = $pdo->query("SELECT id FROM videos WHERE slug IS NULL OR slug = ''")->fetchAll();
+        $updateStmt = $pdo->prepare("UPDATE videos SET slug = ? WHERE id = ?");
+        foreach ($rows as $row) {
+            $updateStmt->execute([bin2hex(random_bytes(4)), (int)$row['id']]);
+        }
+        $pdo->exec("ALTER TABLE videos MODIFY COLUMN slug VARCHAR(16) NOT NULL");
+    }
 }
 
 ensureSchema($pdo);
