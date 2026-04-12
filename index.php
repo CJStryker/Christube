@@ -73,6 +73,8 @@ unset($_SESSION['flash']);
                 </select>
 
                 <label>Video file (mp4, webm, mov, ogg)</label>
+                <p class="muted">Server limits: upload_max_filesize=<?php echo htmlspecialchars((string)ini_get('upload_max_filesize')); ?>, post_max_size=<?php echo htmlspecialchars((string)ini_get('post_max_size')); ?>.</p>
+
                 <input type="file" name="videoFile" accept="video/mp4,video/webm,video/ogg,video/quicktime,.mp4,.webm,.ogg,.mov" required>
 
                 <button type="submit" name="submit">Upload Video</button>

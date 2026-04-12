@@ -2,9 +2,42 @@
 require_once 'config.php';
 requireLogin();
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['submit'])) {
+function toBytes(string $value): int {
+    $value = trim($value);
+    if ($value === '') {
+        return 0;
+    }
+
+    $unit = strtolower($value[strlen($value) - 1]);
+    $number = (float)$value;
+
+    switch ($unit) {
+        case 'g':
+            return (int)($number * 1024 * 1024 * 1024);
+        case 'm':
+            return (int)($number * 1024 * 1024);
+        case 'k':
+            return (int)($number * 1024);
+        default:
+            return (int)$number;
+    }
+}
+
+function failUpload(string $message): void {
+    $_SESSION['flash'] = ['ok' => false, 'msg' => $message];
     header('Location: index.php');
     exit;
+}
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    header('Location: index.php');
+    exit;
+}
+
+$contentLength = isset($_SERVER['CONTENT_LENGTH']) ? (int)$_SERVER['CONTENT_LENGTH'] : 0;
+$postMaxSize = toBytes((string)ini_get('post_max_size'));
+if ($postMaxSize > 0 && $contentLength > $postMaxSize) {
+    failUpload('Upload failed: request exceeded server POST limit (' . ini_get('post_max_size') . '). Ask admin to raise post_max_size and upload_max_filesize.');
 }
 
 $title = trim($_POST['title'] ?? '');
@@ -13,31 +46,37 @@ $visibility = $_POST['visibility'] ?? 'public';
 
 $allowedVisibility = ['public', 'private'];
 if ($title === '' || !in_array($visibility, $allowedVisibility, true)) {
-    $_SESSION['flash'] = ['ok' => false, 'msg' => 'Invalid form input.'];
-    header('Location: index.php');
-    exit;
+    failUpload('Invalid form input. Please include title and a valid privacy setting.');
 }
 
-if (!isset($_FILES['videoFile']) || $_FILES['videoFile']['error'] !== UPLOAD_ERR_OK) {
-    $_SESSION['flash'] = ['ok' => false, 'msg' => 'Video upload failed.'];
-    header('Location: index.php');
-    exit;
+if (!isset($_FILES['videoFile'])) {
+    failUpload('No video file was received by the server. This usually means the file exceeded server upload limits.');
 }
 
 $file = $_FILES['videoFile'];
-$maxSize = 250 * 1024 * 1024; // 250MB
-if ($file['size'] > $maxSize) {
-    $_SESSION['flash'] = ['ok' => false, 'msg' => 'File is too large. Maximum size is 250MB.'];
-    header('Location: index.php');
-    exit;
+if (!isset($file['error']) || (int)$file['error'] !== UPLOAD_ERR_OK) {
+    $errors = [
+        UPLOAD_ERR_INI_SIZE => 'Upload failed: file exceeds server upload_max_filesize (' . ini_get('upload_max_filesize') . ').',
+        UPLOAD_ERR_FORM_SIZE => 'Upload failed: file exceeds HTML form MAX_FILE_SIZE limit.',
+        UPLOAD_ERR_PARTIAL => 'Upload failed: file was only partially uploaded. This can happen with unstable/slow Tor circuits. Try again.',
+        UPLOAD_ERR_NO_FILE => 'Upload failed: no file selected.',
+        UPLOAD_ERR_NO_TMP_DIR => 'Upload failed: server temporary folder is missing.',
+        UPLOAD_ERR_CANT_WRITE => 'Upload failed: server could not write uploaded data to disk.',
+        UPLOAD_ERR_EXTENSION => 'Upload blocked by a server extension.',
+    ];
+    $errorCode = (int)($file['error'] ?? -1);
+    failUpload($errors[$errorCode] ?? ('Upload failed with unknown error code: ' . $errorCode));
+}
+
+$maxAppSize = 250 * 1024 * 1024; // 250MB app-level cap
+if ($file['size'] > $maxAppSize) {
+    failUpload('File is too large for this app (max 250MB).');
 }
 
 $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
 $allowedExt = ['mp4', 'webm', 'ogg', 'mov'];
 if (!in_array($ext, $allowedExt, true)) {
-    $_SESSION['flash'] = ['ok' => false, 'msg' => 'Invalid file type. Allowed: mp4, webm, ogg, mov.'];
-    header('Location: index.php');
-    exit;
+    failUpload('Invalid file type. Allowed: mp4, webm, ogg, mov.');
 }
 
 $finfo = finfo_open(FILEINFO_MIME_TYPE);
@@ -45,9 +84,7 @@ $mime = finfo_file($finfo, $file['tmp_name']);
 finfo_close($finfo);
 $allowedMime = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'];
 if (!in_array($mime, $allowedMime, true)) {
-    $_SESSION['flash'] = ['ok' => false, 'msg' => 'File does not appear to be a valid video.'];
-    header('Location: index.php');
-    exit;
+    failUpload('File does not appear to be a valid video (detected MIME: ' . htmlspecialchars((string)$mime) . ').');
 }
 
 $userId = (int)$_SESSION['user_id'];
@@ -57,9 +94,7 @@ $absolutePath = $uploadDir . $basename;
 $relativePath = 'uploads/videos/user_' . $userId . '/' . $basename;
 
 if (!move_uploaded_file($file['tmp_name'], $absolutePath)) {
-    $_SESSION['flash'] = ['ok' => false, 'msg' => 'Failed to save uploaded file.'];
-    header('Location: index.php');
-    exit;
+    failUpload('Failed to save uploaded file on the server.');
 }
 
 $stmt = $pdo->prepare('INSERT INTO videos (user_id, title, description, file_path, visibility) VALUES (?, ?, ?, ?, ?)');
