@@ -33,9 +33,18 @@ function requireLogin(): void {
 }
 
 function getUserUploadDir(int $user_id): string {
-    $dir = __DIR__ . '/uploads/videos/user_' . $user_id . '/';
+    $baseDir = __DIR__ . '/uploads/videos/';
+    if (!is_dir($baseDir)) {
+        mkdir($baseDir, 0775, true);
+    }
+
+    $dir = $baseDir . 'user_' . $user_id . '/';
     if (!is_dir($dir)) {
-        mkdir($dir, 0755, true);
+        mkdir($dir, 0775, true);
+    }
+
+    if (!is_writable($dir)) {
+        @chmod($dir, 0775);
     }
 
     return $dir;

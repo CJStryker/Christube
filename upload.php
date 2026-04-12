@@ -89,12 +89,22 @@ if (!in_array($mime, $allowedMime, true)) {
 
 $userId = (int)$_SESSION['user_id'];
 $uploadDir = getUserUploadDir($userId);
+if (!is_dir($uploadDir)) {
+    failUpload('Upload directory is missing: ' . $uploadDir);
+}
+
+if (!is_writable($uploadDir)) {
+    failUpload('Upload directory is not writable by the web server user: ' . $uploadDir . '. Fix folder ownership/permissions.');
+}
+
 $basename = bin2hex(random_bytes(16)) . '.' . $ext;
 $absolutePath = $uploadDir . $basename;
 $relativePath = 'uploads/videos/user_' . $userId . '/' . $basename;
 
 if (!move_uploaded_file($file['tmp_name'], $absolutePath)) {
-    failUpload('Failed to save uploaded file on the server.');
+    $lastError = error_get_last();
+    $reason = $lastError['message'] ?? 'unknown filesystem error';
+    failUpload('Failed to save uploaded file on the server. Reason: ' . $reason);
 }
 
 $stmt = $pdo->prepare('INSERT INTO videos (user_id, title, description, file_path, visibility) VALUES (?, ?, ?, ?, ?)');
