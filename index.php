@@ -47,6 +47,7 @@ unset($_SESSION['flash']);
         <strong>Christube</strong>
         <div>
             Logged in as <strong><?php echo htmlspecialchars($currentUsername); ?></strong>
+            <a href="uploads/index.php">My Uploads</a>
             <a href="logout.php">Logout</a>
         </div>
     </div>
