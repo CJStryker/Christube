@@ -68,9 +68,9 @@ if (!isset($file['error']) || (int)$file['error'] !== UPLOAD_ERR_OK) {
     failUpload($errors[$errorCode] ?? ('Upload failed with unknown error code: ' . $errorCode));
 }
 
-$maxAppSize = 250 * 1024 * 1024; // 250MB app-level cap
+$maxAppSize = 150 * 1024 * 1024; // 150MB app-level cap
 if ($file['size'] > $maxAppSize) {
-    failUpload('File is too large for this app (max 250MB).');
+    failUpload('File is too large for this app (max 150MB).');
 }
 
 $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
