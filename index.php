@@ -59,6 +59,10 @@ unset($_SESSION['flash']);
 
         <div class="panel">
             <h2>Upload a video</h2>
+<?php
+                $uploadLimit = (string)ini_get('upload_max_filesize');
+                $postLimit = (string)ini_get('post_max_size');
+                ?>
             <form action="upload.php" method="post" enctype="multipart/form-data">
                 <label>Title</label>
                 <input type="text" name="title" maxlength="150" required>
@@ -73,6 +77,9 @@ unset($_SESSION['flash']);
                 </select>
 
                 <label>Video file (mp4, webm, mov, ogg)</label>
+                <?php if ($uploadLimit !== '150M' || $postLimit !== '160M'): ?>
+                    <p class="muted" style="color:#b00020;font-weight:600;">Warning: server is currently enforcing upload_max_filesize=<?php echo htmlspecialchars($uploadLimit); ?> and post_max_size=<?php echo htmlspecialchars($postLimit); ?>. If you still see 18M, update php.ini/FPM/webserver config; .user.ini alone is not being applied.</p>
+                <?php endif; ?>
                 <p class="muted">Server limits: upload_max_filesize=<?php echo htmlspecialchars((string)ini_get('upload_max_filesize')); ?>, post_max_size=<?php echo htmlspecialchars((string)ini_get('post_max_size')); ?>.</p>
 
                 <input type="file" name="videoFile" accept="video/mp4,video/webm,video/ogg,video/quicktime,.mp4,.webm,.ogg,.mov" required>

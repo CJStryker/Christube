@@ -37,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $contentLength = isset($_SERVER['CONTENT_LENGTH']) ? (int)$_SERVER['CONTENT_LENGTH'] : 0;
 $postMaxSize = toBytes((string)ini_get('post_max_size'));
 if ($postMaxSize > 0 && $contentLength > $postMaxSize) {
-    failUpload('Upload failed: request exceeded server POST limit (' . ini_get('post_max_size') . '). Ask admin to raise post_max_size and upload_max_filesize.');
+    failUpload('Upload failed before PHP could read the file: active post_max_size is ' . ini_get('post_max_size') . '. Increase server/PHP limits (php.ini, FPM pool, or webserver config) to at least 160M post and 150M upload.');
 }
 
 $title = trim($_POST['title'] ?? '');
@@ -56,7 +56,7 @@ if (!isset($_FILES['videoFile'])) {
 $file = $_FILES['videoFile'];
 if (!isset($file['error']) || (int)$file['error'] !== UPLOAD_ERR_OK) {
     $errors = [
-        UPLOAD_ERR_INI_SIZE => 'Upload failed: file exceeds server upload_max_filesize (' . ini_get('upload_max_filesize') . ').',
+        UPLOAD_ERR_INI_SIZE => 'Upload failed: file exceeds active upload_max_filesize (' . ini_get('upload_max_filesize') . '). Increase server/PHP limits to at least 150M.',
         UPLOAD_ERR_FORM_SIZE => 'Upload failed: file exceeds HTML form MAX_FILE_SIZE limit.',
         UPLOAD_ERR_PARTIAL => 'Upload failed: file was only partially uploaded. This can happen with unstable/slow Tor circuits. Try again.',
         UPLOAD_ERR_NO_FILE => 'Upload failed: no file selected.',
