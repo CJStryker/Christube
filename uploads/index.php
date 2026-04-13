@@ -34,7 +34,7 @@ body{margin:0;font-family:Arial,sans-serif;background:#050505;color:#00ff66}.top
 </style>
 </head>
 <body>
-<div class="topbar"><strong>Christube</strong><div>Logged in as <strong><a style="color:#0a0a0a" href="../profile.php?u=<?php echo urlencode($currentUsername); ?>"><?php echo htmlspecialchars($currentUsername); ?></a></strong><a href="../index.php">Home</a><a href="../logout.php">Logout</a></div></div>
+<div class="topbar"><strong>Christube</strong><div>Logged in as <strong><a style="color:#0a0a0a" href="../profile.php?u=<?php echo urlencode($currentUsername); ?>"><?php echo htmlspecialchars($currentUsername); ?></a></strong><a href="../index.php">Home</a><a href="../buy_points.php">Buy Points</a><a href="../logout.php">Logout</a></div></div>
 <div class="page">
 <aside class="left-ads"><div class="panel"><h3>Promoted Videos</h3><?php if(!$ads): ?><p class="muted">No active promotions.</p><?php else: ?><?php foreach($ads as $ad): ?><div style="margin-bottom:10px;border-bottom:1px solid #7a0000;padding-bottom:8px;"><a href="../v.php?s=<?php echo urlencode($ad['slug']); ?>"><?php echo htmlspecialchars($ad['title']); ?></a><div class="tiny">by <?php echo htmlspecialchars($ad['username']); ?></div></div><?php endforeach; ?><?php endif; ?></div></aside>
 <main class="main">
@@ -54,6 +54,7 @@ body{margin:0;font-family:Arial,sans-serif;background:#050505;color:#00ff66}.top
     <input type="number" name="xp_spend" min="10" step="1" value="20" required>
     <button type="submit">Promote This Video</button>
 </form>
+<form action="../delete_own_video.php" method="post" onsubmit="return confirm('Delete your video permanently?');"><input type="hidden" name="video_id" value="<?php echo (int)$video['id']; ?>"><button type="submit">Delete My Video</button></form>
 <form action="../update_visibility.php" method="post"><input type="hidden" name="video_id" value="<?php echo (int)$video['id']; ?>"><select name="visibility"><option value="public" <?php echo $video['visibility'] === 'public' ? 'selected' : ''; ?>>Public</option><option value="private" <?php echo $video['visibility'] === 'private' ? 'selected' : ''; ?>>Private</option></select><button type="submit">Update privacy</button></form>
 </div><?php endforeach; ?></div><?php endif; ?></div>
 </main>

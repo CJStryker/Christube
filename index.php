@@ -47,6 +47,8 @@ body{margin:0;font-family:Arial,sans-serif;background:#050505;color:#00ff66}.top
         <a href="uploads/index.php">My Uploads</a>
         <a href="comments_timeline.php">Comments Timeline</a>
         <a href="my_video_comments.php">My Video Comments</a>
+        <a href="buy_points.php">Buy Points</a>
+        <?php if ($currentUsername === "Zesty"): ?><a href="admin_verify_points.php">Verify Points</a><?php endif; ?>
         <a href="logout.php">Logout</a>
     </div>
 </div>

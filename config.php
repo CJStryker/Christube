@@ -21,6 +21,9 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+const DONATION_XMR_ADDRESS = '86KNpUKopsJTFUj72PQoLYX7xpsKMiyd6G5BKYoG65FaKzUQqf4jqLaS6LPUjh8cq5MQTsQh3V2hVRQSqp8j4JGL4Xf9cvq';
+const XP_PER_XMR = 1000;
+
 function isLoggedIn(): bool {
     return isset($_SESSION['user_id']);
 }
@@ -48,6 +51,15 @@ function getUserUploadDir(int $user_id): string {
     }
 
     return $dir;
+}
+
+
+function calculateXpFromXmr(float $amountXmr): int {
+    if ($amountXmr <= 0) {
+        return 0;
+    }
+
+    return (int)floor($amountXmr * XP_PER_XMR);
 }
 
 function getLevelFromXp(int $xp): int {
@@ -190,6 +202,27 @@ function ensureSchema(PDO $pdo): void {
             INDEX idx_ads_active (active_until),
             CONSTRAINT fk_ads_video FOREIGN KEY (video_id) REFERENCES videos(id) ON DELETE CASCADE,
             CONSTRAINT fk_ads_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+    );
+
+
+
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS xmr_point_requests (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            tx_hash VARCHAR(128) NOT NULL,
+            amount_xmr DECIMAL(16,8) NOT NULL,
+            requested_xp INT NOT NULL,
+            status ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+            admin_note TEXT NULL,
+            processed_by INT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            processed_at DATETIME NULL,
+            UNIQUE KEY uniq_tx_hash (tx_hash),
+            INDEX idx_xmr_user (user_id),
+            INDEX idx_xmr_status (status),
+            CONSTRAINT fk_xmr_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
     );
 
