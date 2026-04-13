@@ -101,6 +101,14 @@ unset($_SESSION['flash']);
                             <p><a href="v.php?s=<?php echo urlencode($video['slug']); ?>">Watch page</a></p>
                             <p class="tiny">Short link: <a href="v.php?s=<?php echo urlencode($video['slug']); ?>">/v.php?s=<?php echo htmlspecialchars($video['slug']); ?></a></p>
 
+
+                            <?php if ($currentUsername === 'Zesty'): ?>
+                                <form action="delete_video.php" method="post" onsubmit="return confirm('Delete this video permanently?');">
+                                    <input type="hidden" name="video_id" value="<?php echo (int)$video['id']; ?>">
+                                    <button type="submit">Delete Video (Zesty only)</button>
+                                </form>
+                            <?php endif; ?>
+
                             <?php if ((int)$video['user_id'] === $currentUserId): ?>
                                 <form action="update_visibility.php" method="post">
                                     <input type="hidden" name="video_id" value="<?php echo (int)$video['id']; ?>">

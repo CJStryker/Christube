@@ -78,6 +78,14 @@ unset($_SESSION['flash']);
         <strong>Christube</strong>
         <div>
             <a href="index.php">Home</a>
+
+            <?php if (($_SESSION['username'] ?? '') === 'Zesty'): ?>
+                <form action="delete_video.php" method="post" onsubmit="return confirm('Delete this video permanently?');" style="margin-top:10px;">
+                    <input type="hidden" name="video_id" value="<?php echo (int)$video['id']; ?>">
+                    <button type="submit">Delete Video (Zesty only)</button>
+                </form>
+            <?php endif; ?>
+
             <?php if ($currentUserId > 0): ?>
                 <a href="logout.php">Logout</a>
             <?php else: ?>
