@@ -28,6 +28,7 @@ if ($video['visibility'] === 'private' && (int)$video['user_id'] !== (int)$_SESS
 
 $insert = $pdo->prepare('INSERT INTO video_comments (video_id, user_id, comment) VALUES (?, ?, ?)');
 $insert->execute([$videoId, (int)$_SESSION['user_id'], $comment]);
+addExperience($pdo, (int)$_SESSION['user_id'], 5, 'comment_posted');
 
 $_SESSION['flash'] = ['ok' => true, 'msg' => 'Comment posted.'];
 header('Location: v.php?s=' . urlencode($video['slug']));

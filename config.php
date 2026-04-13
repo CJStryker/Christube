@@ -50,12 +50,62 @@ function getUserUploadDir(int $user_id): string {
     return $dir;
 }
 
+function getLevelFromXp(int $xp): int {
+    return (int)floor(sqrt(max(0, $xp) / 100)) + 1;
+}
+
+function getXpForNextLevel(int $xp): int {
+    $level = getLevelFromXp($xp);
+    return (int)(pow($level, 2) * 100);
+}
+
+function addExperience(PDO $pdo, int $userId, int $xp, string $reason): void {
+    if ($xp <= 0) {
+        return;
+    }
+
+    $pdo->prepare('UPDATE users SET experience_points = experience_points + ? WHERE id = ?')->execute([$xp, $userId]);
+    $pdo->prepare('INSERT INTO user_xp_events (user_id, xp_delta, reason) VALUES (?, ?, ?)')->execute([$userId, $xp, $reason]);
+}
+
+function spendExperience(PDO $pdo, int $userId, int $xp, string $reason): bool {
+    if ($xp <= 0) {
+        return false;
+    }
+
+    $stmt = $pdo->prepare('UPDATE users SET experience_points = experience_points - ? WHERE id = ? AND experience_points >= ?');
+    $stmt->execute([$xp, $userId, $xp]);
+    if ($stmt->rowCount() < 1) {
+        return false;
+    }
+
+    $pdo->prepare('INSERT INTO user_xp_events (user_id, xp_delta, reason) VALUES (?, ?, ?)')->execute([$userId, -$xp, $reason]);
+    return true;
+}
+
+function getActiveVideoAds(PDO $pdo, int $limit = 5): array {
+    $stmt = $pdo->prepare(
+        "SELECT a.id, a.points_spent, a.active_until, v.slug, v.title, u.username
+         FROM video_ads a
+         INNER JOIN videos v ON v.id = a.video_id
+         INNER JOIN users u ON u.id = a.user_id
+         WHERE a.active_until >= NOW() AND v.visibility = 'public'
+         ORDER BY a.points_spent DESC, a.created_at DESC
+         LIMIT ?"
+    );
+    $stmt->bindValue(1, $limit, PDO::PARAM_INT);
+    $stmt->execute();
+    return $stmt->fetchAll();
+}
+
 function ensureSchema(PDO $pdo): void {
     $pdo->exec(
         "CREATE TABLE IF NOT EXISTS users (
             id INT AUTO_INCREMENT PRIMARY KEY,
             username VARCHAR(50) NOT NULL UNIQUE,
             email VARCHAR(150) NOT NULL UNIQUE,
+            bio TEXT NULL,
+            experience_points INT NOT NULL DEFAULT 0,
             password VARCHAR(255) NOT NULL,
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
@@ -104,8 +154,6 @@ function ensureSchema(PDO $pdo): void {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
     );
 
-
-
     $pdo->exec(
         "CREATE TABLE IF NOT EXISTS user_follows (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -119,12 +167,38 @@ function ensureSchema(PDO $pdo): void {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
     );
 
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS user_xp_events (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            xp_delta INT NOT NULL,
+            reason VARCHAR(120) NOT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_xp_user (user_id),
+            CONSTRAINT fk_xp_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+    );
+
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS video_ads (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            video_id INT NOT NULL,
+            user_id INT NOT NULL,
+            points_spent INT NOT NULL,
+            active_until DATETIME NOT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_ads_active (active_until),
+            CONSTRAINT fk_ads_video FOREIGN KEY (video_id) REFERENCES videos(id) ON DELETE CASCADE,
+            CONSTRAINT fk_ads_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+    );
+
     // Schema upgrades for existing installs.
-
-
-    $hasBio = $pdo->query("SHOW COLUMNS FROM users LIKE 'bio'")->fetch();
-    if (!$hasBio) {
+    if (!$pdo->query("SHOW COLUMNS FROM users LIKE 'bio'")->fetch()) {
         $pdo->exec("ALTER TABLE users ADD COLUMN bio TEXT NULL AFTER email");
+    }
+    if (!$pdo->query("SHOW COLUMNS FROM users LIKE 'experience_points'")->fetch()) {
+        $pdo->exec("ALTER TABLE users ADD COLUMN experience_points INT NOT NULL DEFAULT 0 AFTER bio");
     }
 
     $hasSlug = $pdo->query("SHOW COLUMNS FROM videos LIKE 'slug'")->fetch();

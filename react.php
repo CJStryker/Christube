@@ -25,11 +25,18 @@ if ($video['visibility'] === 'private' && (int)$video['user_id'] !== (int)$_SESS
     exit;
 }
 
+$existingStmt = $pdo->prepare('SELECT reaction FROM video_reactions WHERE video_id = ? AND user_id = ?');
+$existingStmt->execute([$videoId, (int)$_SESSION['user_id']]);
+$oldReaction = $existingStmt->fetchColumn();
+
 $upsert = $pdo->prepare(
     "INSERT INTO video_reactions (video_id, user_id, reaction) VALUES (?, ?, ?)
      ON DUPLICATE KEY UPDATE reaction = VALUES(reaction)"
 );
 $upsert->execute([$videoId, (int)$_SESSION['user_id'], $reaction]);
+if ($oldReaction !== $reaction) {
+    addExperience($pdo, (int)$_SESSION['user_id'], 2, 'video_reaction');
+}
 
 $_SESSION['flash'] = ['ok' => true, 'msg' => 'Reaction saved.'];
 header('Location: v.php?s=' . urlencode($video['slug']));

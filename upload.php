@@ -124,6 +124,7 @@ if (!move_uploaded_file($file['tmp_name'], $absolutePath)) {
 $slug = generateUniqueSlug($pdo);
 $stmt = $pdo->prepare('INSERT INTO videos (user_id, slug, title, description, file_path, visibility) VALUES (?, ?, ?, ?, ?, ?)');
 $stmt->execute([$userId, $slug, $title, $description, $relativePath, $visibility]);
+addExperience($pdo, $userId, 25, 'video_upload');
 
 $_SESSION['flash'] = ['ok' => true, 'msg' => 'Video uploaded successfully.'];
 header('Location: index.php');
