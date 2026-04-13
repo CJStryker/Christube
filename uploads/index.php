@@ -37,6 +37,8 @@ $videos = $stmt->fetchAll();
         input, select { width: 100%; box-sizing: border-box; padding: 10px; margin-top: 6px; margin-bottom: 12px; border: 1px solid #7a0000; border-radius: 6px; background:#000; color:#00ff66; }
         button { background: #7a0000; color: #0a0a0a; border: 0; border-radius: 6px; padding: 10px 14px; cursor: pointer; font-weight:bold; }
         a { color:#00ff66; }
+        .donation-box { background:#140000; border:1px solid #7a0000; border-radius:8px; padding:12px; margin-bottom:14px; }
+        .donation-box code { display:block; margin-top:8px; padding:8px; background:#000; color:#00ff66; overflow-wrap:anywhere; }
     </style>
 </head>
 <body>
@@ -50,6 +52,13 @@ $videos = $stmt->fetchAll();
     </div>
 
     <div class="wrap">
+
+        <div class="donation-box">
+            <strong>Support Christube</strong>
+            <p class="muted">Donation notice: we currently only accept Monero (XMR).</p>
+            <code>86KNpUKopsJTFUj72PQoLYX7xpsKMiyd6G5BKYoG65FaKzUQqf4jqLaS6LPUjh8cq5MQTsQh3V2hVRQSqp8j4JGL4Xf9cvq</code>
+        </div>
+
         <div class="panel">
             <h2>My uploaded videos</h2>
             <?php if (!$videos): ?>

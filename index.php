@@ -43,6 +43,8 @@ unset($_SESSION['flash']);
         .flash { padding: 10px 12px; border-radius: 8px; margin-bottom: 12px; background: #1c1c1c; border: 1px solid #7a0000; }
         .tiny { font-size: 12px; color: #87fcb0; }
         a { color: #00ff66; }
+        .donation-box { background:#140000; border:1px solid #7a0000; border-radius:8px; padding:12px; margin-bottom:14px; }
+        .donation-box code { display:block; margin-top:8px; padding:8px; background:#000; color:#00ff66; overflow-wrap:anywhere; }
     </style>
 </head>
 <body>
@@ -59,6 +61,13 @@ unset($_SESSION['flash']);
         <?php if ($flash): ?>
             <div class="flash"><?php echo htmlspecialchars($flash['msg']); ?></div>
         <?php endif; ?>
+
+
+        <div class="donation-box">
+            <strong>Support Christube</strong>
+            <p class="muted">Donation notice: we currently only accept Monero (XMR).</p>
+            <code>86KNpUKopsJTFUj72PQoLYX7xpsKMiyd6G5BKYoG65FaKzUQqf4jqLaS6LPUjh8cq5MQTsQh3V2hVRQSqp8j4JGL4Xf9cvq</code>
+        </div>
 
         <div class="panel">
             <h2>Upload a video</h2>
