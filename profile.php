@@ -68,7 +68,7 @@ body{margin:0;background:#050505;color:#00ff66;font-family:Arial,sans-serif}.top
 </style>
 </head>
 <body>
-<div class="topbar"><strong>Christube</strong><div><a href="index.php">Home</a><a href="uploads/index.php">My Uploads</a><a href="logout.php">Logout</a></div></div>
+<div class="topbar"><strong>Christube</strong><div><a href="index.php">Home</a><a href="uploads/index.php">My Uploads</a><a href="comments_timeline.php">Comments Timeline</a><a href="my_video_comments.php">My Video Comments</a><a href="logout.php">Logout</a></div></div>
 <div class="wrap">
 <?php if ($flash): ?><div class="flash"><?php echo htmlspecialchars($flash['msg']); ?></div><?php endif; ?>
 <div class="panel">

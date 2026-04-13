@@ -53,6 +53,8 @@ unset($_SESSION['flash']);
         <div>
             Logged in as <strong><a style="color:#0a0a0a" href="profile.php?u=<?php echo urlencode($currentUsername); ?>"><?php echo htmlspecialchars($currentUsername); ?></a></strong>
             <a href="uploads/index.php">My Uploads</a>
+            <a href="comments_timeline.php">Comments Timeline</a>
+            <a href="my_video_comments.php">My Video Comments</a>
             <a href="logout.php">Logout</a>
         </div>
     </div>
