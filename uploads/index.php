@@ -45,7 +45,7 @@ $videos = $stmt->fetchAll();
     <div class="topbar">
         <strong>Christube</strong>
         <div>
-            Logged in as <strong><?php echo htmlspecialchars($currentUsername); ?></strong>
+            Logged in as <strong><a style="color:#0a0a0a" href="../profile.php?u=<?php echo urlencode($currentUsername); ?>"><?php echo htmlspecialchars($currentUsername); ?></a></strong>
             <a href="../index.php">Home</a>
             <a href="../logout.php">Logout</a>
         </div>

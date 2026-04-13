@@ -104,7 +104,29 @@ function ensureSchema(PDO $pdo): void {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
     );
 
+
+
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS user_follows (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            follower_id INT NOT NULL,
+            followed_id INT NOT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY uniq_follow (follower_id, followed_id),
+            INDEX idx_followed (followed_id),
+            CONSTRAINT fk_follow_follower FOREIGN KEY (follower_id) REFERENCES users(id) ON DELETE CASCADE,
+            CONSTRAINT fk_followed_user FOREIGN KEY (followed_id) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+    );
+
     // Schema upgrades for existing installs.
+
+
+    $hasBio = $pdo->query("SHOW COLUMNS FROM users LIKE 'bio'")->fetch();
+    if (!$hasBio) {
+        $pdo->exec("ALTER TABLE users ADD COLUMN bio TEXT NULL AFTER email");
+    }
+
     $hasSlug = $pdo->query("SHOW COLUMNS FROM videos LIKE 'slug'")->fetch();
     if (!$hasSlug) {
         $pdo->exec("ALTER TABLE videos ADD COLUMN slug VARCHAR(16) NULL UNIQUE AFTER user_id");

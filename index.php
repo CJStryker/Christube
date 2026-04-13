@@ -51,7 +51,7 @@ unset($_SESSION['flash']);
     <div class="topbar">
         <strong>Christube</strong>
         <div>
-            Logged in as <strong><?php echo htmlspecialchars($currentUsername); ?></strong>
+            Logged in as <strong><a style="color:#0a0a0a" href="profile.php?u=<?php echo urlencode($currentUsername); ?>"><?php echo htmlspecialchars($currentUsername); ?></a></strong>
             <a href="uploads/index.php">My Uploads</a>
             <a href="logout.php">Logout</a>
         </div>
@@ -104,7 +104,7 @@ unset($_SESSION['flash']);
                             <video controls preload="metadata" src="<?php echo htmlspecialchars($video['file_path']); ?>"></video>
                             <h3><?php echo htmlspecialchars($video['title']); ?></h3>
                             <p class="muted"><?php echo nl2br(htmlspecialchars($video['description'] ?? '')); ?></p>
-                            <p class="tiny">By <?php echo htmlspecialchars($video['username']); ?> · <?php echo htmlspecialchars($video['uploaded_at']); ?></p>
+                            <p class="tiny">By <a href="profile.php?u=<?php echo urlencode($video['username']); ?>"><?php echo htmlspecialchars($video['username']); ?></a> · <?php echo htmlspecialchars($video['uploaded_at']); ?></p>
                             <p class="tiny">Visibility: <strong><?php echo htmlspecialchars($video['visibility']); ?></strong></p>
                             <p class="tiny">👍 <?php echo (int)$video['likes']; ?> · 👎 <?php echo (int)$video['dislikes']; ?></p>
                             <p><a href="v.php?s=<?php echo urlencode($video['slug']); ?>">Watch page</a></p>

@@ -79,7 +79,7 @@ unset($_SESSION['flash']);
     <div class="topbar">
         <strong>Christube</strong>
         <div>
-            <a href="index.php">Home</a>
+            <a href="index.php">Home</a><a href="profile.php?u=<?php echo urlencode($_SESSION['username'] ?? ""); ?>">Profile</a>
 
             <?php if (($_SESSION['username'] ?? '') === 'Zesty'): ?>
                 <form action="delete_video.php" method="post" onsubmit="return confirm('Delete this video permanently?');" style="margin-top:10px;">
@@ -109,7 +109,7 @@ unset($_SESSION['flash']);
             <h1><?php echo htmlspecialchars($video['title']); ?></h1>
             <video controls preload="metadata" src="<?php echo htmlspecialchars($video['file_path']); ?>"></video>
             <p><?php echo nl2br(htmlspecialchars($video['description'] ?? '')); ?></p>
-            <p class="meta">By <?php echo htmlspecialchars($video['username']); ?> · <?php echo htmlspecialchars($video['uploaded_at']); ?></p>
+            <p class="meta">By <a href="profile.php?u=<?php echo urlencode($video['username']); ?>"><?php echo htmlspecialchars($video['username']); ?></a> · <?php echo htmlspecialchars($video['uploaded_at']); ?></p>
             <p class="meta">Likes: <?php echo (int)$video['likes']; ?> · Dislikes: <?php echo (int)$video['dislikes']; ?></p>
             <p class="meta">Share link: <a style="color:#00ff66" href="v.php?s=<?php echo urlencode($video['slug']); ?>">v.php?s=<?php echo htmlspecialchars($video['slug']); ?></a></p>
 
@@ -145,7 +145,7 @@ unset($_SESSION['flash']);
                 <?php foreach ($comments as $comment): ?>
                     <div class="panel" style="margin: 10px 0;">
                         <p><?php echo nl2br(htmlspecialchars($comment['comment'])); ?></p>
-                        <p class="meta">— <?php echo htmlspecialchars($comment['username']); ?> at <?php echo htmlspecialchars($comment['created_at']); ?></p>
+                        <p class="meta">— <a href="profile.php?u=<?php echo urlencode($comment['username']); ?>"><?php echo htmlspecialchars($comment['username']); ?></a> at <?php echo htmlspecialchars($comment['created_at']); ?></p>
                     </div>
                 <?php endforeach; ?>
             <?php endif; ?>
