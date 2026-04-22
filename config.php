@@ -108,6 +108,77 @@ function pullFlash(): ?array {
     return $flash;
 }
 
+
+function currentUser(): ?array {
+    if (!isset($_SESSION['user_id'])) {
+        return null;
+    }
+
+    return [
+        'id' => (int)$_SESSION['user_id'],
+        'username' => (string)($_SESSION['username'] ?? ''),
+    ];
+}
+
+function csrfToken(): string {
+    if (empty($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    }
+
+    return (string)$_SESSION['csrf_token'];
+}
+
+function csrfInput(): string {
+    return '<input type="hidden" name="csrf_token" value="' . e(csrfToken()) . '">';
+}
+
+function verifyCsrfToken(?string $token): bool {
+    $sessionToken = $_SESSION['csrf_token'] ?? null;
+    if (!is_string($sessionToken) || !is_string($token)) {
+        return false;
+    }
+
+    return hash_equals($sessionToken, $token);
+}
+
+function handleMutation(array $options, callable $handler): void {
+    $requireAuth = $options['requireAuth'] ?? true;
+    $rateBucket = $options['rateBucket'] ?? 'mutation';
+    $rateLimit = $options['rateLimit'] ?? 80;
+    $rateWindow = $options['rateWindow'] ?? 60;
+    $onErrorRedirect = $options['onErrorRedirect'] ?? 'index.php';
+
+    requirePost();
+
+    if (!rateLimitCheck((string)$rateBucket, (int)$rateLimit, (int)$rateWindow)) {
+        setFlash(false, 'Too many requests. Please slow down.');
+        header('Location: ' . $onErrorRedirect);
+        exit;
+    }
+
+    if (!verifyCsrfToken($_POST['csrf_token'] ?? null)) {
+        setFlash(false, 'Invalid or expired form token. Refresh and try again.');
+        header('Location: ' . $onErrorRedirect);
+        exit;
+    }
+
+    if ($requireAuth) {
+        requireLogin();
+    }
+
+    try {
+        $handler();
+    } catch (Throwable $e) {
+        if (env('APP_ENV', 'production') === 'development') {
+            setFlash(false, 'Mutation failed: ' . $e->getMessage());
+        } else {
+            setFlash(false, 'Request failed. Please try again.');
+        }
+        header('Location: ' . $onErrorRedirect);
+        exit;
+    }
+}
+
 function isLoggedIn(): bool {
     return isset($_SESSION['user_id']);
 }
@@ -245,7 +316,13 @@ function ensureSchema(PDO $pdo): void {
             id INT AUTO_INCREMENT PRIMARY KEY,
             username VARCHAR(50) NOT NULL UNIQUE,
             email VARCHAR(150) NOT NULL UNIQUE,
+            display_name VARCHAR(80) NULL,
             bio TEXT NULL,
+            avatar_url VARCHAR(255) NULL,
+            banner_url VARCHAR(255) NULL,
+            role VARCHAR(24) NOT NULL DEFAULT 'user',
+            account_status VARCHAR(24) NOT NULL DEFAULT 'active',
+            profile_visibility VARCHAR(24) NOT NULL DEFAULT 'public',
             experience_points INT NOT NULL DEFAULT 0,
             password VARCHAR(255) NOT NULL,
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -356,6 +433,25 @@ function ensureSchema(PDO $pdo): void {
     // Schema upgrades for existing installs.
     if (!$pdo->query("SHOW COLUMNS FROM users LIKE 'bio'")->fetch()) {
         $pdo->exec("ALTER TABLE users ADD COLUMN bio TEXT NULL AFTER email");
+    }
+
+    if (!$pdo->query("SHOW COLUMNS FROM users LIKE 'display_name'")->fetch()) {
+        $pdo->exec("ALTER TABLE users ADD COLUMN display_name VARCHAR(80) NULL AFTER email");
+    }
+    if (!$pdo->query("SHOW COLUMNS FROM users LIKE 'avatar_url'")->fetch()) {
+        $pdo->exec("ALTER TABLE users ADD COLUMN avatar_url VARCHAR(255) NULL AFTER bio");
+    }
+    if (!$pdo->query("SHOW COLUMNS FROM users LIKE 'banner_url'")->fetch()) {
+        $pdo->exec("ALTER TABLE users ADD COLUMN banner_url VARCHAR(255) NULL AFTER avatar_url");
+    }
+    if (!$pdo->query("SHOW COLUMNS FROM users LIKE 'role'")->fetch()) {
+        $pdo->exec("ALTER TABLE users ADD COLUMN role VARCHAR(24) NOT NULL DEFAULT 'user' AFTER banner_url");
+    }
+    if (!$pdo->query("SHOW COLUMNS FROM users LIKE 'account_status'")->fetch()) {
+        $pdo->exec("ALTER TABLE users ADD COLUMN account_status VARCHAR(24) NOT NULL DEFAULT 'active' AFTER role");
+    }
+    if (!$pdo->query("SHOW COLUMNS FROM users LIKE 'profile_visibility'")->fetch()) {
+        $pdo->exec("ALTER TABLE users ADD COLUMN profile_visibility VARCHAR(24) NOT NULL DEFAULT 'public' AFTER account_status");
     }
     if (!$pdo->query("SHOW COLUMNS FROM users LIKE 'experience_points'")->fetch()) {
         $pdo->exec("ALTER TABLE users ADD COLUMN experience_points INT NOT NULL DEFAULT 0 AFTER bio");
