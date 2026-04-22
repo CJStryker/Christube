@@ -15,4 +15,9 @@ if (!$video || !canUserAccessVideo($video, $userId)) {
 }
 recordWatchProgress($pdo, $videoId, $userId, $position, $duration);
 trackProductEvent($pdo, 'watch_progress', $userId, ['video_id'=>$videoId,'position'=>$position]);
+awardExp($pdo, $userId, economyConfig()['xp']['watch_start'], 'watch_start', 'watched video', 'watch-start-' . $videoId . '-' . $userId . '-' . date('YmdH'), ['video_id'=>$videoId], false, $userId);
+if ($duration > 0 && $position / $duration >= 0.9) {
+    awardExp($pdo, $userId, economyConfig()['xp']['watch_complete'], 'watch_complete', 'completed video', 'watch-complete-' . $videoId . '-' . $userId . '-' . date('Ymd'), ['video_id'=>$videoId], false, $userId);
+    milestoneAward($pdo, $userId);
+}
 mediaJson(['ok'=>true]);

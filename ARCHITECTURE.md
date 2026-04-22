@@ -1,54 +1,65 @@
-# Christube Architecture (Phase 6)
+# Christube Architecture (Phase 7)
 
-## Creator Dashboard Architecture
-Creator Studio is routed under `/creator/*` and guarded by `requireLogin()`.
+## EXP Domain Model & Ledger
+- `exp_ledger`: immutable event ledger with idempotency keys.
+- `user_progression`: aggregate progression state (viewer/creator tracks).
+- `achievements` + `user_achievements`: badge/milestone scaffolding.
 
-Key surfaces:
-- dashboard overview
-- video management
-- channel settings entrypoint
-- analytics (channel + per-video)
-- comments inbox
-- promotions
-- notifications
+All EXP mutations route through `awardExp()` in `includes/economy.php`.
 
-Navigation is centralized via `creatorNav()` in `includes/creator.php`.
+## Ranking / Recommendation Architecture
+`includes/recommendation.php` separates:
+1. candidate generation
+2. user signal extraction
+3. weighted scoring/ranking
 
-## Analytics Aggregation Model
-### Live Aggregates
-`getCreatorAnalytics()` and `getCreatorOverviewStats()` aggregate from:
-- `video_views`
-- `product_events`
-- `video_reactions`
-- `video_comments`
-- `user_follows`
-- `watch_history`
+Targets:
+- homepage personalized rail
+- related videos
+- creator suggestions
 
-### Materialized Aggregates
-`creator_rollup.php` materializes daily rows into `creator_daily_stats` (and prepares `video_daily_stats` schema) for scaling future analytics workloads.
+Safety:
+- non-public/unready excluded by candidate query
+- anti-repeat and creator saturation controls
+- low-quality risk penalty hook
 
-## Notification Generation Model
-- Storage: `notifications`
-- Preferences: `notification_preferences`
-- Delivery now: in-app
-- Future extension path: email/push channels via same event model
+## Search Services
+Search is expanded to include:
+- videos/channels/playlists
+- sort + type + duration filtering
+- saved/trending query data stores
+- analytics event logging
 
-Generation hooks are called from core mutation and processing flows using `notifyUser()` with optional dedupe keys.
+Ranking remains deterministic and explainable.
 
-## Aggregate/Materialization Strategy
-- keep critical UX metrics available live
-- use daily rollups for longitudinal reporting and dashboard performance
-- avoid overengineering into warehouse-style complexity
+## Monetization Domain Boundaries
+Introduced in `includes/economy.php`:
+- `monetization_profiles`
+- `sponsor_campaigns`
+- `creator_sponsor_responses`
+- `payout_reviews`
 
-## Creator/Admin Permission Boundaries
-- Creator routes only expose authenticated user’s own channel/video data.
-- Per-video edit/analytics enforce owner checks.
-- Notifications are strictly user-scoped.
-- Admin surfaces require explicit admin guard (`requireAdminUser()`).
-- Public product surfaces still enforce video visibility/readiness gating.
+This phase provides state/workflow scaffolding only; no external payout execution.
 
-## Event Taxonomy Separation
-- `product_events`: engagement and product behavior analytics.
-- `audit_logs`: security/operational action trail.
+## Sponsor/Marketplace Models
+- Campaign lifecycle states: draft/submitted/review/approved/active/completed/cancelled.
+- Creator response states: pending/accepted/declined.
+- Admin review surface in `admin/economy.php`.
 
-They are intentionally separate systems with separate purposes.
+## Payout Readiness Model
+- Creator-facing readiness + setup placeholders (`creator/monetization.php`).
+- Eligibility based on multi-signal checks (EXP + followers + views + policy flags).
+- Admin updates payout review decisions and state transitions.
+
+## Retention/Lifecycle Design
+- progression nudges (homepage + creator dashboard)
+- return-visit and completion rewards
+- milestone notification hooks
+- next-best-action scaffolding for creator growth
+
+## Permission & Safety Boundaries
+- creator routes: owner-scoped
+- admin economy routes: admin-only
+- EXP adjustments: admin-controlled and audit logged
+- monetization states: controlled workflow, no direct cash conversion
+- recommendation/search: visibility-safe content only

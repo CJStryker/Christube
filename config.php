@@ -56,6 +56,8 @@ const MAX_VIDEO_UPLOAD_BYTES = 157286400; // 150MB
 require_once __DIR__ . '/includes/media.php';
 require_once __DIR__ . '/includes/product.php';
 require_once __DIR__ . '/includes/creator.php';
+require_once __DIR__ . '/includes/economy.php';
+require_once __DIR__ . '/includes/recommendation.php';
 
 $appEnv = env('APP_ENV', 'production');
 
@@ -497,4 +499,5 @@ ensureSchema($pdo);
 ensureMediaSchema($pdo);
 ensureProductSchema($pdo);
 ensureCreatorSchema($pdo);
+ensureEconomySchema($pdo);
 ?>

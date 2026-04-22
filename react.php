@@ -45,7 +45,7 @@ handleMutation([
     $upsert->execute([$videoId, (int)$_SESSION['user_id'], $reaction]);
 
     if ($oldReaction !== $reaction) {
-        addExperience($pdo, (int)$_SESSION['user_id'], 2, 'video_reaction');
+        awardExp($pdo, (int)$_SESSION['user_id'], economyConfig()['xp']['reaction_given'], 'reaction_given', 'reacted to video', 'react-' . $videoId . '-' . (int)$_SESSION['user_id'] . '-' . date('YmdHi'), ['reaction'=>$reaction], false, (int)$_SESSION['user_id']);
     }
 
     trackProductEvent($pdo, 'reaction_saved', (int)$_SESSION['user_id'], ['video_id'=>$videoId,'reaction'=>$reaction]);

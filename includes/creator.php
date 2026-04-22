@@ -92,6 +92,8 @@ function creatorNav(string $base = '../'): array {
         $base . 'creator/analytics.php' => 'Analytics',
         $base . 'creator/comments.php' => 'Comments',
         $base . 'creator/promotions.php' => 'Promotions',
+        $base . 'creator/sponsors.php' => 'Sponsors',
+        $base . 'creator/monetization.php' => 'Monetization',
         $base . 'creator/notifications.php' => 'Notifications',
         $base . 'creator/settings.php' => 'Channel Settings',
     ];

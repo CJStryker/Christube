@@ -45,6 +45,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $hashed = password_hash($password, PASSWORD_DEFAULT);
         $stmt = $pdo->prepare('INSERT INTO users (username, display_name, email, password, created_at) VALUES (?, ?, ?, ?, NOW())');
         $stmt->execute([$username, $displayName !== '' ? $displayName : $username, $email, $hashed]);
+        $newUserId = (int)$pdo->lastInsertId();
+        awardExp($pdo, $newUserId, economyConfig()['xp']['signup_bonus'], 'signup_bonus', 'account registration', 'signup-' . $newUserId, [], false, $newUserId);
 
         setFlash(true, 'Registration successful. Please login.');
         header('Location: login.php');

@@ -1,75 +1,97 @@
 # Christube
 
-Phase 6 introduces **Creator Studio** and operational foundations: creator dashboard, creator analytics, notifications, creator moderation inbox, matured promotions, and admin operations tooling.
+Phase 7 introduces the platform economy/intelligence backbone: robust EXP ledger/rules, progression tiers, personalization/recommendation abstractions, advanced search intelligence, sponsor marketplace scaffolding, and payout-readiness workflows.
 
-## Creator Dashboard Usage
-Main studio routes:
-- `creator/dashboard.php` – overview widgets, quick actions, recent activity, top videos.
-- `creator/videos.php` – owned video management with status/archive/search filters.
-- `creator/video_edit.php` – metadata, visibility, archive state updates.
-- `creator/analytics.php` + `creator/video_analytics.php` – channel and per-video analytics.
-- `creator/comments.php` – creator comments inbox and moderation/removal action.
-- `creator/promotions.php` – promotion creation + history/status.
-- `creator/notifications.php` – notifications feed + read-state + preference scaffolding.
-- `creator/settings.php` – channel management entrypoint.
+## EXP System Rules & Safety Model
+Core EXP logic is centralized in `includes/economy.php`.
 
-## Analytics Derivation Approach
-Analytics are derived from real product/activity tables:
-- views from `video_views`
-- watch starts from `product_events` (`watch_start`)
-- likes/comments from `video_reactions` and `video_comments`
-- follower growth from `user_follows`
-- watch quality approximations from `watch_history` (`avg_watch_seconds`, completion ratio)
+### Ledger and Idempotency
+- `exp_ledger` stores every EXP grant/deduction with:
+  - event code
+  - reason
+  - actor/target
+  - post-balance
+  - idempotency key
+  - metadata
+- Duplicate awards are blocked through unique idempotency keys.
 
-Aggregation logic is centralized in `includes/creator.php` (`getCreatorAnalytics`, `getCreatorOverviewStats`).
+### Progression State
+- `user_progression` stores viewer/creator EXP, levels, ranks, lifetime/available EXP, and streak scaffolding.
+- `progressionLevels()` derives level/rank + next-level threshold.
 
-## Notification System
-`notifications` + `notification_preferences` provide in-app notification foundations:
-- unread/read state
-- mark one/mark all read
-- dedupe key support to reduce spam duplicates
-- user preference scaffolding for comments/follows/processing/promotions
+### Anti-abuse Guards
+- daily EXP caps per track (viewer/creator)
+- idempotency keys for all rule events
+- deterministic event codes and reasons
+- no direct EXP-to-cash conversion
 
-Notification generation is integrated into key flows:
-- new comment on owned video
-- new follower
-- upload processing success/failure
-- promotion activation/status updates
+### Rule Examples
+- signup bonus
+- follow creator
+- reaction given
+- meaningful comment
+- watch start/completion
+- return-visit reward
 
-## Promotions Workflow
-Creators can manage promotions from `creator/promotions.php`:
-- validates ownership and ready video state
-- blocks duplicate concurrent promotion on same video
-- enforces XP spend and duration policy
-- records audit + notification on activation
+## Recommendation & Personalization Architecture
+Implemented in `includes/recommendation.php`:
+- candidate generation (`recCandidateLatest`)
+- user signal extraction (`recUserSignals`)
+- weighted ranking (`recScoreRows`)
+- personalized homepage rail (`personalizedHomepage`)
+- personalized related videos (`personalizedRelated`)
+- creator suggestions (`creatorSuggestions`)
 
-## Admin / Moderation Operational Surfaces
-`admin/ops.php` adds:
-- operational counters (pending reports, failed processing, pending point requests, new users, recent uploads)
-- reports queue with review actions and quick links
-- recent audit log browsing surface
+Ranking signals include recency, likes, views, creator affinity, follows, creator tier, and basic anti-risk suppression.
 
-## Aggregate / Materialization Strategy
-- **Live compute** for immediate dashboard metrics (fast enough current scale).
-- **Materialized daily rollups** via `creator_rollup.php` into `creator_daily_stats` (and schema for `video_daily_stats`) for future heavier analytics views.
+## Search Architecture and Ranking
+`search.php` now supports:
+- multi-entity search (videos/channels/playlists)
+- filters for type/sort/duration
+- saved queries (`search_saved_queries`) and trending queries (`search_trending_queries`)
+- search analytics hooks (`search_performed`)
+- visibility-safe query surfaces (public/unlisted-safe where appropriate)
 
-Run rollup manually:
-```bash
-php creator_rollup.php
-```
+## Monetization / Marketplace / Payout Readiness Models
+Economy schema in `includes/economy.php` adds:
+- `monetization_profiles`
+- `sponsor_campaigns`
+- `creator_sponsor_responses`
+- `payout_reviews`
 
-## Event Taxonomy Notes
-- Product analytics events live in `product_events` (viewer/creator behavior).
-- Security/operational actions remain in `audit_logs`.
-- This keeps analytics and audit concerns separate by design.
+Creator flows:
+- `creator/sponsors.php` for campaign requests/opportunities + response state
+- `creator/monetization.php` for readiness, setup placeholders, and payout-review requests
 
-## Testing
+Admin flow:
+- `admin/economy.php` for EXP ledger inspection/adjustments, campaign review, payout review operations
+
+> Note: payout execution is intentionally not implemented yet (state/workflow scaffolding only).
+
+## Sponsor Tools & Eligibility Logic
+`creatorEligibility()` combines creator EXP, followers, and views to determine:
+- sponsor marketplace access
+- payout review eligibility
+
+EXP is one signal among others (not a cash balance and not sole monetization criterion).
+
+## Retention/Lifecycle Hooks
+- homepage progression panel + personalized rails
+- return-visit EXP reward
+- watch-completion EXP and milestone check
+- milestone notifications for progression events
+- Creator Studio “next best actions” panel
+
+## Config/Tuning Controls
+`economyConfig()` centralizes default knobs for:
+- EXP rule values and caps
+- ranking weights
+- eligibility thresholds
+
+`recommendationWeights()` supports optional runtime overrides from `system_tuning` when available.
+
+## Run checks
 ```bash
 for f in *.php includes/*.php creator/*.php admin/*.php uploads/*.php tests/*.php; do php -l "$f"; done
 php tests/integration_flows.php
 ```
-
-## Known Limitations
-- Charts are table-first (no JS chart rendering library yet).
-- Rollup job is CLI/manual and not scheduler-managed by default.
-- Admin workflows are practical but still lightweight compared to full moderation suites.

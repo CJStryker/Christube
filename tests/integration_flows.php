@@ -11,31 +11,31 @@ function mustContain(string $file, string $needle): void {
 $mutationEndpoints = [
     'register.php','login.php','upload.php','comment.php','react.php','follow.php','promote_video.php',
     'buy_points.php','admin_verify_points.php','update_visibility.php','delete_own_video.php','delete_video.php','edit_profile.php',
-    'playlist_save.php','report_video.php'
+    'playlist_save.php','report_video.php','creator/video_edit.php','creator/comments.php','creator/promotions.php','creator/notifications.php','creator/sponsors.php','creator/monetization.php','admin/economy.php'
 ];
 foreach ($mutationEndpoints as $endpoint) {
     mustContain($root . '/' . $endpoint, 'handleMutation([');
 }
 
-mustContain($root . '/config.php', 'ensureCreatorSchema($pdo);');
-mustContain($root . '/includes/creator.php', 'function ensureCreatorSchema');
-mustContain($root . '/includes/creator.php', 'function notifyUser');
-mustContain($root . '/includes/creator.php', 'function getCreatorAnalytics');
-mustContain($root . '/includes/creator.php', 'CREATE TABLE IF NOT EXISTS notifications');
-mustContain($root . '/includes/creator.php', 'CREATE TABLE IF NOT EXISTS creator_daily_stats');
-mustContain($root . '/creator/dashboard.php', 'Dashboard Overview');
-mustContain($root . '/creator/videos.php', 'My Videos');
-mustContain($root . '/creator/video_edit.php', 'Edit Video');
-mustContain($root . '/creator/analytics.php', 'Analytics Overview');
-mustContain($root . '/creator/video_analytics.php', 'Video Analytics');
-mustContain($root . '/creator/comments.php', 'Comments Inbox');
-mustContain($root . '/creator/promotions.php', 'Promotion History');
-mustContain($root . '/creator/notifications.php', 'Notifications');
-mustContain($root . '/admin/ops.php', 'Operational Summary');
-mustContain($root . '/creator_rollup.php', 'Creator stats rollup completed');
-mustContain($root . '/comment.php', 'comment_on_video');
-mustContain($root . '/follow.php', 'new_follower');
-mustContain($root . '/worker_media.php', 'upload_processed');
-mustContain($root . '/worker_media.php', 'upload_failed');
+mustContain($root . '/config.php', 'ensureEconomySchema($pdo);');
+mustContain($root . '/includes/economy.php', 'function awardExp');
+mustContain($root . '/includes/economy.php', 'function progressionLevels');
+mustContain($root . '/includes/economy.php', 'function creatorEligibility');
+mustContain($root . '/includes/economy.php', 'CREATE TABLE IF NOT EXISTS exp_ledger');
+mustContain($root . '/includes/economy.php', 'CREATE TABLE IF NOT EXISTS sponsor_campaigns');
+mustContain($root . '/includes/economy.php', 'CREATE TABLE IF NOT EXISTS payout_reviews');
+mustContain($root . '/includes/recommendation.php', 'function personalizedHomepage');
+mustContain($root . '/includes/recommendation.php', 'function personalizedRelated');
+mustContain($root . '/includes/recommendation.php', 'function creatorSuggestions');
+mustContain($root . '/index.php', 'For You');
+mustContain($root . '/search.php', 'Trending Searches');
+mustContain($root . '/search.php', 'search_saved_queries');
+mustContain($root . '/leaderboard.php', 'Community Leaderboards');
+mustContain($root . '/creator/monetization.php', 'Payout Readiness');
+mustContain($root . '/creator/sponsors.php', 'Sponsor & Campaign Tools');
+mustContain($root . '/admin/economy.php', 'EXP Ledger Controls');
+mustContain($root . '/comment.php', 'awardExp(');
+mustContain($root . '/follow.php', 'awardExp(');
+mustContain($root . '/history_update.php', 'watch_complete');
 
-echo "Phase-6 integration checks passed.\n";
+echo "Phase-7 integration checks passed.\n";

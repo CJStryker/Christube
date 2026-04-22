@@ -41,7 +41,7 @@ $commentsStmt = $pdo->prepare("SELECT c.id, c.user_id, c.comment, c.created_at, 
 $commentsStmt->execute([(int)$video['id']]);
 $comments = $commentsStmt->fetchAll();
 
-$related = getRelatedVideos($pdo, (int)$video['id'], (int)$video['user_id'], 12);
+$related = personalizedRelated($pdo, $currentUserId, (int)$video['id'], 12);
 $ads = getActiveVideoAds($pdo, 6);
 $flash = pullFlash();
 

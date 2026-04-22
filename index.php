@@ -34,6 +34,22 @@ WHERE f.follower_id=? AND v.processing_status='ready' AND v.visibility='public' 
 }
 
 trackProductEvent($pdo, 'homepage_impression', $currentUserId ?: null, ['latest_count'=>count($latest),'trending_count'=>count($trending)]);
+
+$personalized = personalizedHomepage($pdo, $currentUserId, 16);
+$creatorSuggest = $currentUserId > 0 ? creatorSuggestions($pdo, $currentUserId, 8) : [];
+$progress = null;
+if ($currentUserId > 0) {
+    ensureProgressionRow($pdo, $currentUserId);
+    $pr = $pdo->prepare('SELECT * FROM user_progression WHERE user_id=?');
+    $pr->execute([$currentUserId]);
+    $progress = $pr->fetch();
+    if ($progress) {
+        $next = progressionLevels((int)$progress['viewer_exp'], false)['next_exp'];
+        $progress['viewer_next'] = $next;
+    }
+    awardExp($pdo, $currentUserId, 1, 'return_visit', 'daily return visit', 'return-' . $currentUserId . '-' . date('Ymd'), [], false, $currentUserId);
+}
+
 ?>
 <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Christube</title><link rel="stylesheet" href="public/styles.css"><style>.section-head{display:flex;justify-content:space-between;align-items:center}.video-card .thumb{width:100%;max-height:170px;object-fit:cover;border-radius:8px}.related-row{display:flex;gap:10px;align-items:flex-start}.related-thumb{width:140px;height:80px;object-fit:cover;border-radius:8px}</style></head><body>
 <?php
@@ -50,7 +66,10 @@ if ($currentUserId > 0) {
 ?>
 <div class="page"><?php renderPromotedSidebar($pdo); ?><main class="main">
 <?php renderFlashBlock(); ?>
+<?php if($progress): ?><div class="panel"><h3>Your Progress</h3><p class="tiny">Viewer EXP: <?php echo (int)$progress['viewer_exp']; ?> · Level <?php echo (int)$progress['viewer_level']; ?> (<?php echo e($progress['viewer_rank']); ?>)</p><progress max="<?php echo (int)$progress['viewer_next']; ?>" value="<?php echo (int)$progress['viewer_exp']; ?>" style="width:100%"></progress><p class="tiny">Next level at <?php echo (int)$progress['viewer_next']; ?> EXP.</p></div><?php endif; ?>
 <?php if ($currentUserId > 0): ?><div class="panel"><h2>Upload a video</h2><form id="chunkUploadForm" action="upload.php" method="post" enctype="multipart/form-data"><?php echo csrfInput(); ?><label>Title</label><input type="text" name="title" maxlength="150" required><label>Description</label><textarea name="description" rows="3" maxlength="2000"></textarea><label>Privacy</label><select name="visibility" required><option value="public">Public</option><option value="private">Private</option></select><label>Video file</label><input type="file" name="videoFile" required><button>Upload Video</button></form><p id="uploadStatus" class="tiny"></p></div><?php endif; ?>
+<div class="panel"><?php renderSectionHeader('For You'); ?><?php if(!$personalized): ?><p class="muted">Personalized picks will appear as you watch and engage.</p><?php else: ?><div class="grid"><?php foreach($personalized as $v){ renderVideoCard($v);} ?></div><?php endif; ?></div>
+<?php if($currentUserId>0): ?><div class="panel"><h3>Suggested Creators</h3><?php if(!$creatorSuggest): ?><p class="muted">No suggestions yet.</p><?php else: ?><ul><?php foreach($creatorSuggest as $c): ?><li><a href="profile.php?u=<?php echo urlencode($c['username']); ?>">@<?php echo e($c['username']); ?></a> · Followers <?php echo (int)$c['followers']; ?> · Creator Level <?php echo (int)$c['creator_level']; ?></li><?php endforeach; ?></ul><?php endif; ?></div><?php endif; ?>
 <div class="panel"><?php renderSectionHeader('Latest Videos'); ?><div class="grid"><?php foreach($latest as $v){ renderVideoCard($v);} ?></div></div>
 <div class="panel"><?php renderSectionHeader('Trending', 'trending.php'); ?><?php if(!$trending): ?><p class="muted">No trending videos yet.</p><?php else: ?><div class="grid"><?php foreach($trending as $v){ renderVideoCard($v);} ?></div><?php endif; ?></div>
 <?php if($currentUserId>0): ?><div class="panel"><?php renderSectionHeader('From Subscriptions', 'subscriptions.php'); ?><?php if(!$fromSubscriptions): ?><p class="muted">Follow creators to personalize this section.</p><?php else: ?><div class="grid"><?php foreach($fromSubscriptions as $v){ renderVideoCard($v);} ?></div><?php endif; ?></div>

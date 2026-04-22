@@ -25,6 +25,7 @@ handleMutation([
     if ($action === 'follow') {
         $stmt = $pdo->prepare('INSERT IGNORE INTO user_follows (follower_id, followed_id) VALUES (?, ?)');
         $stmt->execute([$currentUserId, $targetUserId]);
+        awardExp($pdo, $currentUserId, economyConfig()['xp']['follow_creator'], 'follow_creator', 'followed a creator', 'follow-' . $currentUserId . '-' . $targetUserId . '-' . date('Ymd'), ['target_user_id'=>$targetUserId], false, $currentUserId);
         trackProductEvent($pdo, 'followed_creator', $currentUserId, ['target_user_id'=>$targetUserId]);
         notifyUser($pdo, $targetUserId, 'new_follower', 'You have a new follower', '@' . $_SESSION['username'] . ' followed your channel.', 'user', $currentUserId, 'follow-' . $currentUserId);
         setFlash(true, 'Now following @' . $target['username'] . '.');

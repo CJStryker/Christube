@@ -31,7 +31,7 @@ handleMutation([
 
     $insert = $pdo->prepare('INSERT INTO video_comments (video_id, user_id, comment) VALUES (?, ?, ?)');
     $insert->execute([$videoId, (int)$_SESSION['user_id'], $comment]);
-    addExperience($pdo, (int)$_SESSION['user_id'], 5, 'comment_posted');
+    awardExp($pdo, (int)$_SESSION['user_id'], economyConfig()['xp']['comment_posted'], 'comment_posted', 'posted a comment', 'comment-' . $videoId . '-' . (int)$_SESSION['user_id'] . '-' . date('YmdHi'), ['video_id'=>$videoId], false, (int)$_SESSION['user_id']);
     trackProductEvent($pdo, 'comment_posted', (int)$_SESSION['user_id'], ['video_id'=>$videoId]);
     if ((int)$video['user_id'] !== (int)$_SESSION['user_id']) {
         notifyUser($pdo, (int)$video['user_id'], 'comment_on_video', 'New comment on your video', 'Someone commented on your video.', 'video', $videoId, 'comment-' . $videoId . '-' . ((int)$_SESSION['user_id']));
