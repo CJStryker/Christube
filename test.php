@@ -1,11 +1,9 @@
 <?php
-require_once 'config.php'; // Include the config file
-
-// Test database connection
-try {
-    $pdo->query("SELECT 1");
-    echo "Connection is successful!";
-} catch (PDOException $e) {
-    echo "Connection failed: " . $e->getMessage();
+require_once 'config.php';
+if (env('APP_ENV', 'production') !== 'development') {
+    http_response_code(404);
+    echo 'Not Found';
+    exit;
 }
+echo 'Test endpoint is enabled (development mode).';
 ?>

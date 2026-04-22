@@ -1,10 +1,69 @@
 <?php
-$host = 'localhost';
-$dbname = 'user_auth';
-$username = 'user';
-$password = 'poopie';
+/**
+ * Christube bootstrap (legacy-compatible)
+ * Centralizes environment loading, PDO setup, auth/session helpers,
+ * validation, flash messaging, XP economy, and schema setup.
+ */
 
-$dsn = "mysql:host=$host;dbname=$dbname;charset=utf8mb4";
+// -------------------------
+// Environment loading
+// -------------------------
+function loadDotEnv(string $path): void {
+    if (!is_file($path)) {
+        return;
+    }
+
+    $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    if ($lines === false) {
+        return;
+    }
+
+    foreach ($lines as $line) {
+        $line = trim($line);
+        if ($line === '' || str_starts_with($line, '#')) {
+            continue;
+        }
+
+        [$key, $value] = array_pad(explode('=', $line, 2), 2, '');
+        $key = trim($key);
+        $value = trim($value);
+        $value = trim($value, "\"'");
+
+        if ($key === '' || getenv($key) !== false) {
+            continue;
+        }
+
+        putenv($key . '=' . $value);
+        $_ENV[$key] = $value;
+    }
+}
+
+loadDotEnv(__DIR__ . '/.env');
+
+function env(string $key, ?string $default = null): ?string {
+    $value = getenv($key);
+    if ($value === false || $value === '') {
+        return $default;
+    }
+
+    return $value;
+}
+
+const DONATION_XMR_ADDRESS = '86KNpUKopsJTFUj72PQoLYX7xpsKMiyd6G5BKYoG65FaKzUQqf4jqLaS6LPUjh8cq5MQTsQh3V2hVRQSqp8j4JGL4Xf9cvq';
+const XP_PER_XMR = 1000;
+const MAX_VIDEO_UPLOAD_BYTES = 157286400; // 150MB
+
+$appEnv = env('APP_ENV', 'production');
+
+// -------------------------
+// DB setup
+// -------------------------
+$dbHost = env('DB_HOST', 'localhost');
+$dbName = env('DB_NAME', 'user_auth');
+$dbUser = env('DB_USER', 'user');
+$dbPass = env('DB_PASS', '');
+
+$dsn = "mysql:host={$dbHost};dbname={$dbName};charset=utf8mb4";
 $options = [
     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
@@ -12,17 +71,42 @@ $options = [
 ];
 
 try {
-    $pdo = new PDO($dsn, $username, $password, $options);
+    $pdo = new PDO($dsn, $dbUser, $dbPass, $options);
 } catch (PDOException $e) {
-    die('Connection failed: ' . $e->getMessage());
+    if ($appEnv === 'development') {
+        die('Connection failed: ' . $e->getMessage());
+    }
+    die('Database connection failed.');
 }
 
+// -------------------------
+// Session hardening
+// -------------------------
 if (session_status() === PHP_SESSION_NONE) {
+    session_set_cookie_params([
+        'httponly' => true,
+        'secure' => isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+        'samesite' => 'Lax',
+    ]);
     session_start();
 }
 
-const DONATION_XMR_ADDRESS = '86KNpUKopsJTFUj72PQoLYX7xpsKMiyd6G5BKYoG65FaKzUQqf4jqLaS6LPUjh8cq5MQTsQh3V2hVRQSqp8j4JGL4Xf9cvq';
-const XP_PER_XMR = 1000;
+// -------------------------
+// Generic helpers
+// -------------------------
+function e(string $value): string {
+    return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+}
+
+function setFlash(bool $ok, string $msg): void {
+    $_SESSION['flash'] = ['ok' => $ok, 'msg' => $msg];
+}
+
+function pullFlash(): ?array {
+    $flash = $_SESSION['flash'] ?? null;
+    unset($_SESSION['flash']);
+    return $flash;
+}
 
 function isLoggedIn(): bool {
     return isset($_SESSION['user_id']);
@@ -33,6 +117,22 @@ function requireLogin(): void {
         header('Location: login.php');
         exit;
     }
+}
+
+function requirePost(): void {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        echo 'Method Not Allowed';
+        exit;
+    }
+}
+
+function validateVisibility(string $visibility): bool {
+    return in_array($visibility, ['public', 'private'], true);
+}
+
+function validateTxHash(string $txHash): bool {
+    return (bool)preg_match('/^[a-f0-9]{64}$/i', $txHash);
 }
 
 function getUserUploadDir(int $user_id): string {
@@ -53,7 +153,33 @@ function getUserUploadDir(int $user_id): string {
     return $dir;
 }
 
+// -------------------------
+// Security placeholders
+// -------------------------
+function rateLimitCheck(string $bucket, int $limit = 60, int $windowSeconds = 60): bool {
+    // TODO(next phase): replace with Redis/IP+user based distributed limiter.
+    $key = 'rl_' . $bucket;
+    $now = time();
+    $entry = $_SESSION[$key] ?? ['count' => 0, 'start' => $now];
 
+    if (($now - (int)$entry['start']) > $windowSeconds) {
+        $entry = ['count' => 0, 'start' => $now];
+    }
+
+    $entry['count']++;
+    $_SESSION[$key] = $entry;
+
+    return (int)$entry['count'] <= $limit;
+}
+
+function moderationCheck(string $content): bool {
+    // TODO(next phase): plug in moderation service/classifier and human review queue.
+    return trim($content) !== '';
+}
+
+// -------------------------
+// XP economy
+// -------------------------
 function calculateXpFromXmr(float $amountXmr): int {
     if ($amountXmr <= 0) {
         return 0;
@@ -110,6 +236,9 @@ function getActiveVideoAds(PDO $pdo, int $limit = 5): array {
     return $stmt->fetchAll();
 }
 
+// -------------------------
+// Schema management
+// -------------------------
 function ensureSchema(PDO $pdo): void {
     $pdo->exec(
         "CREATE TABLE IF NOT EXISTS users (
@@ -204,8 +333,6 @@ function ensureSchema(PDO $pdo): void {
             CONSTRAINT fk_ads_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
     );
-
-
 
     $pdo->exec(
         "CREATE TABLE IF NOT EXISTS xmr_point_requests (
