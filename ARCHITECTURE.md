@@ -1,51 +1,44 @@
-# Christube Architecture (Phase 4)
+# Christube Architecture (Phase 5)
 
-## Media Lifecycle
-`draft/uploading -> processing -> ready|failed`
+## Watch Page Data Flow
+1. Resolve video slug and enforce access (`public+ready` or owner).
+2. Resolve media URLs via asset IDs (no raw internal path exposure).
+3. Record deduped view and watch-start event.
+4. Render watch UI with related videos, comments, follow/react/report controls.
+5. Persist watch progress asynchronously (`history_update.php`).
 
-- `upload_sessions`: resumable upload state, ownership, expiry, progress bytes.
-- `upload_chunks`: chunk records keyed by `(session, chunk_index)`.
-- `videos`: canonical content record with processing and readiness fields.
-- `media_assets`: source/playback/thumbnail references and technical metadata.
-- `media_jobs`: queue-friendly background processing tasks.
+## Discovery / Ranking Services
+`includes/product.php` centralizes ranking/query logic:
+- latest feed
+- trending scoring
+- related scoring
+- search ranking/sorting
 
-## Storage Abstraction
-Implemented in `includes/media.php`:
-- `mediaConfig()` env-driven root/chunk limits
-- `mediaPaths()` typed buckets (tmp/original/playback/thumb/derivatives)
-- `mediaResolveAbsolutePath()` central local disk resolver
-- `mediaAssetUrl()` centralized frontend URL generation
+All discovery queries enforce ready/public gating to prevent leakage.
 
-Design supports future additional disks (e.g., S3-compatible) by extending storage resolution logic.
+## Playlist Model
+- `playlists`: owner, slug, metadata, visibility (`public/private/unlisted`), system Watch Later flag.
+- `playlist_videos`: join table with order index and uniqueness.
+- Ownership checks are enforced for modifications.
 
-## Upload Pipeline
-1. `upload_start.php` validates auth+CSRF+constraints and opens `upload_sessions` record.
-2. `upload_chunk.php` verifies owner + session and stores chunk file + DB entry.
-3. `upload_finalize.php` assembles file with stream copy, validates MIME, creates source asset, video record, and queue job.
+## History Model
+- `watch_history` stores per-user per-video last position and duration.
+- `video_views` tracks dedup-able views via session fingerprint and time window.
+- Continue Watching rail uses history recency.
 
-Idempotency support:
-- finalize returns existing video if session already moved to processing/ready.
-- chunk rows are upserted per chunk index.
+## Search Architecture
+- `search.php` calls `searchVideosAndChannels()` service.
+- Input is sanitized/parameterized.
+- Sorting: relevance/newest/popular.
+- Results reuse shared video card rendering.
 
-## Background Processing
-`worker_media.php` polls queued `process_video` jobs and performs:
-- metadata probe (ffprobe)
-- normalized playback generation (ffmpeg -> MP4)
-- thumbnail extraction
-- asset record creation and video status transition
-- retry-ready failure handling (`queued` until max attempts, then `failed`)
+## Reusable UI Components
+`includes/components.php` provides:
+- section header
+- video card
+- related row
+- comment item (creator badge support)
 
-## Asset Delivery Rules
-`media_asset.php` resolves asset by id and enforces:
-- public delivery only when `visibility=public` and `processing_status=ready`
-- owner access to private/not-ready assets
-- internal path never leaked to frontend
-
-## Creator UX
-- `index.php` now starts resumable chunk uploads from browser JS.
-- Upload progress is surfaced per chunk and finalization status is shown.
-- `uploads/index.php` shows per-video processing status/errors and media preview thumbnails.
-
-## Moderation/Audit Hooks
-- `audit_logs` table records upload session creation, finalize, and processing completion events.
-- Video states gate visibility to prevent draft/failed/processing content from appearing public.
+## Product Analytics Hooks
+`product_events` provides event-capture scaffolding for:
+watching, discovery, reactions, follows, comments, playlist actions, reports.

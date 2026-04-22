@@ -25,10 +25,12 @@ handleMutation([
     if ($action === 'follow') {
         $stmt = $pdo->prepare('INSERT IGNORE INTO user_follows (follower_id, followed_id) VALUES (?, ?)');
         $stmt->execute([$currentUserId, $targetUserId]);
+        trackProductEvent($pdo, 'followed_creator', $currentUserId, ['target_user_id'=>$targetUserId]);
         setFlash(true, 'Now following @' . $target['username'] . '.');
     } else {
         $stmt = $pdo->prepare('DELETE FROM user_follows WHERE follower_id = ? AND followed_id = ?');
         $stmt->execute([$currentUserId, $targetUserId]);
+        trackProductEvent($pdo, 'unfollowed_creator', $currentUserId, ['target_user_id'=>$targetUserId]);
         setFlash(true, 'Unfollowed @' . $target['username'] . '.');
     }
 

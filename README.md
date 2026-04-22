@@ -1,75 +1,56 @@
 # Christube
 
-Christube is a PHP + MySQL video platform prototype. Phase 4 adds a production-style media ingestion foundation with resumable uploads, storage abstraction, background processing, metadata extraction, transcoding, thumbnail generation, and safe media asset delivery.
+Phase 5 turns Christube into a core video product experience with a complete watch page, discovery feeds, subscriptions, playlists, history, search, and analytics hooks on top of the Phase 4 media pipeline.
 
-## Stack
-- PHP (server-rendered routes + JSON mutation endpoints)
-- MySQL (PDO)
-- Session auth + CSRF-protected POST mutations
-- FFmpeg/ffprobe (optional but recommended for processing)
+## Product Surfaces
+- **Homepage (`index.php`)**: Latest, Trending, Subscriptions rail, Continue Watching rail.
+- **Watch page (`view.php`)**: Player, metadata, creator block, reactions, follow, comments, save-to-playlist, report, related videos, playlist context.
+- **Discovery**: `search.php`, `trending.php`, `subscriptions.php`.
+- **Collections**: `playlists.php`, `playlist.php`, `playlist_save.php`.
+- **History**: `history.php`, `history_update.php`.
 
-## Setup
-1. Copy `.env.example` to `.env`.
-2. Set DB credentials.
-3. Ensure writable media root (`storage/media` by default).
-4. Install FFmpeg/ffprobe for full processing quality.
-5. Serve repository with PHP-enabled web server.
+## Watch Page Architecture
+- Load video by slug with visibility/readiness gating.
+- Count deduped views (`video_views`) with short-window fingerprint suppression.
+- Render ready playback asset only (`media_asset.php`).
+- Persist watch progress (`watch_history`) for authenticated users.
+- Emit product analytics hooks (`product_events`) for watch start/progress and user actions.
 
-Schema is bootstrapped in `config.php` via `ensureSchema()` + `ensureMediaSchema()`.
+## Discovery/Trending Logic
+Implemented in `includes/product.php`:
+- `getLatestVideos()` – newest ready/public videos.
+- `getTrendingVideos()` – deterministic score using views + likes + recency tie-break.
+- `getRelatedVideos()` – creator affinity + recency + engagement score.
+- `searchVideosAndChannels()` – title/description/creator match with sort options (relevance/newest/popular).
 
-## Environment Variables
-- `APP_ENV`
-- `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASS`
-- `MEDIA_ROOT` (default: `storage/media`)
-- `MAX_VIDEO_UPLOAD_BYTES` (default 150MB)
-- `UPLOAD_CHUNK_BYTES` (default 5MB)
-- `UPLOAD_SESSION_TTL_HOURS` (default 24)
+No fake ML is used in this phase.
 
-## Phase 4 Upload & Processing Flow
-1. **Start upload session** (`upload_start.php`) with title/description/visibility/file size.
-2. **Chunk upload** (`upload_chunk.php`) pushes ordered chunks tied to session owner.
-3. **Finalize upload** (`upload_finalize.php`) assembles source asset, validates MIME, creates video in `processing` state, and enqueues `process_video` job.
-4. **Worker processing** (`worker_media.php`) handles probing/transcode/thumbnail generation and marks video `ready` or `failed`.
-5. **Asset delivery** (`media_asset.php?id=...`) enforces visibility and readiness before streaming file bytes.
+## Playlists / History Behavior
+- User playlists support `public/private/unlisted` visibility.
+- Playlist add/remove is CSRF-protected mutation (`playlist_save.php`).
+- Watch Later is system playlist created lazily per user.
+- History records last position + duration and powers Continue Watching.
+- History route supports deleting entries.
 
-Legacy form upload (`upload.php`) still works and internally uses the same pipeline.
+## Analytics Hooks Added
+`product_events` receives events such as:
+- homepage impression
+- trending impression
+- search performed
+- watch start / watch progress
+- follow / unfollow
+- reaction saved / reaction removed
+- playlist created / playlist add
+- comment posted
+- video reported
 
-## Storage Layout
-Under `MEDIA_ROOT`:
-- `tmp_chunks/` upload-session chunk staging
-- `originals/` finalized source files
-- `playback/` normalized MP4 outputs
-- `thumbnails/` generated JPG images
-- `derivatives/` placeholder for future captions/moderation outputs
-
-Frontend only receives stable route URLs (`media_asset.php?id=...`), not raw internal paths.
-
-## Job Flow (Dev/Test/Prod)
-- Run worker manually:
-  ```bash
-  php worker_media.php
-  ```
-- Cleanup expired upload sessions/chunks:
-  ```bash
-  php cleanup_uploads.php
-  ```
-- In production, schedule both via cron/supervisor:
-  - worker every minute (or continuously)
-  - cleanup hourly
-
-## Testing
-Run integration checks:
+## Running Tests
 ```bash
+for f in *.php includes/*.php uploads/*.php tests/*.php; do php -l "$f"; done
 php tests/integration_flows.php
 ```
 
-Run syntax lint:
-```bash
-for f in *.php includes/*.php uploads/*.php tests/*.php; do php -l "$f"; done
-```
-
-## Known Limitations
-- Queue backend is DB-polled worker, not distributed queue yet.
-- FFmpeg absence falls back to source copy as playback output.
-- Adaptive streaming manifests (HLS/DASH) are scaffold-ready but not implemented.
-- Chunk integrity uses ordered assembly but does not yet checksum each part.
+## Key Limitations
+- Trending/recommendations are deterministic heuristics (no personalization model yet).
+- No full browser E2E harness yet; coverage is integration-wiring level.
+- Playlist reorder drag/drop and chapters are scaffold-ready but not fully implemented.

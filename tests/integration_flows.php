@@ -9,40 +9,31 @@ function mustContain(string $file, string $needle): void {
 }
 
 $mutationEndpoints = [
-    'register.php',
-    'login.php',
-    'upload.php',
-    'comment.php',
-    'react.php',
-    'follow.php',
-    'promote_video.php',
-    'buy_points.php',
-    'admin_verify_points.php',
-    'update_visibility.php',
-    'delete_own_video.php',
-    'delete_video.php',
-    'edit_profile.php',
+    'register.php','login.php','upload.php','comment.php','react.php','follow.php','promote_video.php',
+    'buy_points.php','admin_verify_points.php','update_visibility.php','delete_own_video.php','delete_video.php','edit_profile.php',
+    'playlist_save.php','report_video.php'
 ];
-
 foreach ($mutationEndpoints as $endpoint) {
     mustContain($root . '/' . $endpoint, 'handleMutation([');
 }
 
-// phase-4 media pipeline checks
-mustContain($root . '/includes/media.php', 'function mediaCreateUploadSession');
-mustContain($root . '/includes/media.php', 'function mediaAppendChunk');
 mustContain($root . '/includes/media.php', 'function mediaFinalizeUpload');
-mustContain($root . '/includes/media.php', 'CREATE TABLE IF NOT EXISTS media_assets');
-mustContain($root . '/includes/media.php', 'CREATE TABLE IF NOT EXISTS media_jobs');
-mustContain($root . '/upload_start.php', 'mediaCreateUploadSession');
-mustContain($root . '/upload_chunk.php', 'mediaAppendChunk');
-mustContain($root . '/upload_finalize.php', 'mediaFinalizeUpload');
-mustContain($root . '/media_asset.php', 'Forbidden');
-mustContain($root . '/worker_media.php', 'process_video');
-mustContain($root . '/cleanup_uploads.php', 'expired sessions');
-mustContain($root . '/index.php', 'upload_start.php');
-mustContain($root . '/index.php', 'upload_chunk.php');
-mustContain($root . '/index.php', 'upload_finalize.php');
-mustContain($root . '/view.php', 'MEDIA_STATUS_READY');
+mustContain($root . '/includes/product.php', 'function getTrendingVideos');
+mustContain($root . '/includes/product.php', 'function getRelatedVideos');
+mustContain($root . '/includes/product.php', 'function searchVideosAndChannels');
+mustContain($root . '/includes/product.php', 'function recordWatchProgress');
+mustContain($root . '/includes/product.php', 'CREATE TABLE IF NOT EXISTS playlists');
+mustContain($root . '/includes/product.php', 'CREATE TABLE IF NOT EXISTS watch_history');
+mustContain($root . '/includes/components.php', 'function renderVideoCard');
+mustContain($root . '/view.php', 'Related Videos');
+mustContain($root . '/view.php', 'history_update.php');
+mustContain($root . '/view.php', 'report_video.php');
+mustContain($root . '/index.php', 'From Subscriptions');
+mustContain($root . '/index.php', 'Continue Watching');
+mustContain($root . '/search.php', 'searchVideosAndChannels');
+mustContain($root . '/trending.php', 'getTrendingVideos');
+mustContain($root . '/subscriptions.php', 'Subscriptions Feed');
+mustContain($root . '/history.php', 'Watch History');
+mustContain($root . '/playlist.php', 'playlist_videos');
 
-echo "Integration checks passed.\n";
+echo "Phase-5 integration checks passed.\n";

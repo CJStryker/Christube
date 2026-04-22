@@ -54,6 +54,7 @@ const XP_PER_XMR = 1000;
 const MAX_VIDEO_UPLOAD_BYTES = 157286400; // 150MB
 
 require_once __DIR__ . '/includes/media.php';
+require_once __DIR__ . '/includes/product.php';
 
 $appEnv = env('APP_ENV', 'production');
 
@@ -491,4 +492,5 @@ function ensureSchema(PDO $pdo): void {
 
 ensureSchema($pdo);
 ensureMediaSchema($pdo);
+ensureProductSchema($pdo);
 ?>
