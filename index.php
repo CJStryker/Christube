@@ -39,7 +39,7 @@ trackProductEvent($pdo, 'homepage_impression', $currentUserId ?: null, ['latest_
 <?php
 $nav = ['search.php'=>'Search','trending.php'=>'Trending'];
 if ($currentUserId > 0) {
-    $nav = ['index.php'=>'Home','subscriptions.php'=>'Subscriptions','history.php'=>'History','playlists.php'=>'Playlists','search.php'=>'Search','trending.php'=>'Trending','profile.php?u='.urlencode($currentUsername)=>'Profile'];
+    $nav = ['index.php'=>'Home','subscriptions.php'=>'Subscriptions','history.php'=>'History','playlists.php'=>'Playlists','search.php'=>'Search','trending.php'=>'Trending','creator/dashboard.php'=>'Creator Studio','profile.php?u='.urlencode($currentUsername)=>'Profile'];
 }
 renderTopbar('Christube', $nav);
 if ($currentUserId > 0) {

@@ -26,6 +26,7 @@ handleMutation([
         $stmt = $pdo->prepare('INSERT IGNORE INTO user_follows (follower_id, followed_id) VALUES (?, ?)');
         $stmt->execute([$currentUserId, $targetUserId]);
         trackProductEvent($pdo, 'followed_creator', $currentUserId, ['target_user_id'=>$targetUserId]);
+        notifyUser($pdo, $targetUserId, 'new_follower', 'You have a new follower', '@' . $_SESSION['username'] . ' followed your channel.', 'user', $currentUserId, 'follow-' . $currentUserId);
         setFlash(true, 'Now following @' . $target['username'] . '.');
     } else {
         $stmt = $pdo->prepare('DELETE FROM user_follows WHERE follower_id = ? AND followed_id = ?');

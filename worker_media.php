@@ -94,11 +94,16 @@ foreach ($jobs as $job) {
         $pdo->commit();
 
         auditEvent($pdo, (int)$video['user_id'], 'video_processing_completed', ['video_id' => $videoId]);
+        notifyUser($pdo, (int)$video['user_id'], 'upload_processed', 'Upload processing complete', 'Your video is ready to watch.', 'video', $videoId, 'processing-ok-' . $videoId);
     } catch (Throwable $e) {
         $pdo->rollBack();
         $pdo->prepare("UPDATE media_jobs SET status = IF(attempts >= max_attempts, 'failed', 'queued'), run_after = DATE_ADD(NOW(), INTERVAL 2 MINUTE), last_error=? WHERE id=?")
             ->execute([substr($e->getMessage(), 0, 250), $jobId]);
         $pdo->prepare('UPDATE videos SET processing_status=?, processing_error=? WHERE id=?')->execute([MEDIA_STATUS_FAILED, substr($e->getMessage(), 0, 250), $videoId]);
+        $ownerId = (int)$pdo->query('SELECT user_id FROM videos WHERE id=' . $videoId)->fetchColumn();
+        if ($ownerId > 0) {
+            notifyUser($pdo, $ownerId, 'upload_failed', 'Upload processing failed', 'A video failed processing. You can review it in Creator Studio.', 'video', $videoId, 'processing-failed-' . $videoId);
+        }
     }
 }
 

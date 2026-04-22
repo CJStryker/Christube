@@ -5,7 +5,7 @@ requireLogin();
 handleMutation([
     'requireAuth' => true,
     'rateBucket' => 'promote',
-    'onErrorRedirect' => 'uploads/index.php',
+    'onErrorRedirect' => 'creator/promotions.php',
 ], function () use ($pdo): void {
     $videoId = isset($_POST['video_id']) ? (int)$_POST['video_id'] : 0;
     $xpSpend = isset($_POST['xp_spend']) ? (int)$_POST['xp_spend'] : 0;
@@ -30,8 +30,9 @@ handleMutation([
     $ins = $pdo->prepare('INSERT INTO video_ads (video_id, user_id, points_spent, active_until) VALUES (?, ?, ?, ?)');
     $ins->execute([$videoId, $userId, $xpSpend, $activeUntil]);
 
+    notifyUser($pdo, $userId, 'promotion_status', 'Promotion activated', 'Your promotion is active for ' . $hours . ' hours.', 'video', $videoId, 'promotion-active-' . $videoId);
     setFlash(true, 'Ad campaign started for ' . $hours . ' hours.');
-    header('Location: uploads/index.php');
+    header('Location: creator/promotions.php');
     exit;
 });
 ?>

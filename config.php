@@ -55,6 +55,7 @@ const MAX_VIDEO_UPLOAD_BYTES = 157286400; // 150MB
 
 require_once __DIR__ . '/includes/media.php';
 require_once __DIR__ . '/includes/product.php';
+require_once __DIR__ . '/includes/creator.php';
 
 $appEnv = env('APP_ENV', 'production');
 
@@ -202,7 +203,7 @@ function requirePost(): void {
 }
 
 function validateVisibility(string $visibility): bool {
-    return in_array($visibility, ['public', 'private'], true);
+    return in_array($visibility, ['public', 'private', 'unlisted'], true);
 }
 
 function validateTxHash(string $txHash): bool {
@@ -346,7 +347,7 @@ function ensureSchema(PDO $pdo): void {
             title VARCHAR(150) NOT NULL,
             description TEXT NULL,
             file_path VARCHAR(255) NOT NULL,
-            visibility ENUM('public','private') NOT NULL DEFAULT 'public',
+            visibility ENUM('public','private','unlisted') NOT NULL DEFAULT 'public',
             uploaded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             INDEX idx_videos_uploaded_at (uploaded_at),
             INDEX idx_videos_visibility (visibility),
@@ -478,6 +479,8 @@ function ensureSchema(PDO $pdo): void {
         $pdo->exec("ALTER TABLE users ADD COLUMN experience_points INT NOT NULL DEFAULT 0 AFTER bio");
     }
 
+    $pdo->exec("ALTER TABLE videos MODIFY COLUMN visibility ENUM('public','private','unlisted') NOT NULL DEFAULT 'public'");
+
     $hasSlug = $pdo->query("SHOW COLUMNS FROM videos LIKE 'slug'")->fetch();
     if (!$hasSlug) {
         $pdo->exec("ALTER TABLE videos ADD COLUMN slug VARCHAR(16) NULL UNIQUE AFTER user_id");
@@ -493,4 +496,5 @@ function ensureSchema(PDO $pdo): void {
 ensureSchema($pdo);
 ensureMediaSchema($pdo);
 ensureProductSchema($pdo);
+ensureCreatorSchema($pdo);
 ?>

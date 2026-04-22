@@ -1,56 +1,75 @@
 # Christube
 
-Phase 5 turns Christube into a core video product experience with a complete watch page, discovery feeds, subscriptions, playlists, history, search, and analytics hooks on top of the Phase 4 media pipeline.
+Phase 6 introduces **Creator Studio** and operational foundations: creator dashboard, creator analytics, notifications, creator moderation inbox, matured promotions, and admin operations tooling.
 
-## Product Surfaces
-- **Homepage (`index.php`)**: Latest, Trending, Subscriptions rail, Continue Watching rail.
-- **Watch page (`view.php`)**: Player, metadata, creator block, reactions, follow, comments, save-to-playlist, report, related videos, playlist context.
-- **Discovery**: `search.php`, `trending.php`, `subscriptions.php`.
-- **Collections**: `playlists.php`, `playlist.php`, `playlist_save.php`.
-- **History**: `history.php`, `history_update.php`.
+## Creator Dashboard Usage
+Main studio routes:
+- `creator/dashboard.php` – overview widgets, quick actions, recent activity, top videos.
+- `creator/videos.php` – owned video management with status/archive/search filters.
+- `creator/video_edit.php` – metadata, visibility, archive state updates.
+- `creator/analytics.php` + `creator/video_analytics.php` – channel and per-video analytics.
+- `creator/comments.php` – creator comments inbox and moderation/removal action.
+- `creator/promotions.php` – promotion creation + history/status.
+- `creator/notifications.php` – notifications feed + read-state + preference scaffolding.
+- `creator/settings.php` – channel management entrypoint.
 
-## Watch Page Architecture
-- Load video by slug with visibility/readiness gating.
-- Count deduped views (`video_views`) with short-window fingerprint suppression.
-- Render ready playback asset only (`media_asset.php`).
-- Persist watch progress (`watch_history`) for authenticated users.
-- Emit product analytics hooks (`product_events`) for watch start/progress and user actions.
+## Analytics Derivation Approach
+Analytics are derived from real product/activity tables:
+- views from `video_views`
+- watch starts from `product_events` (`watch_start`)
+- likes/comments from `video_reactions` and `video_comments`
+- follower growth from `user_follows`
+- watch quality approximations from `watch_history` (`avg_watch_seconds`, completion ratio)
 
-## Discovery/Trending Logic
-Implemented in `includes/product.php`:
-- `getLatestVideos()` – newest ready/public videos.
-- `getTrendingVideos()` – deterministic score using views + likes + recency tie-break.
-- `getRelatedVideos()` – creator affinity + recency + engagement score.
-- `searchVideosAndChannels()` – title/description/creator match with sort options (relevance/newest/popular).
+Aggregation logic is centralized in `includes/creator.php` (`getCreatorAnalytics`, `getCreatorOverviewStats`).
 
-No fake ML is used in this phase.
+## Notification System
+`notifications` + `notification_preferences` provide in-app notification foundations:
+- unread/read state
+- mark one/mark all read
+- dedupe key support to reduce spam duplicates
+- user preference scaffolding for comments/follows/processing/promotions
 
-## Playlists / History Behavior
-- User playlists support `public/private/unlisted` visibility.
-- Playlist add/remove is CSRF-protected mutation (`playlist_save.php`).
-- Watch Later is system playlist created lazily per user.
-- History records last position + duration and powers Continue Watching.
-- History route supports deleting entries.
+Notification generation is integrated into key flows:
+- new comment on owned video
+- new follower
+- upload processing success/failure
+- promotion activation/status updates
 
-## Analytics Hooks Added
-`product_events` receives events such as:
-- homepage impression
-- trending impression
-- search performed
-- watch start / watch progress
-- follow / unfollow
-- reaction saved / reaction removed
-- playlist created / playlist add
-- comment posted
-- video reported
+## Promotions Workflow
+Creators can manage promotions from `creator/promotions.php`:
+- validates ownership and ready video state
+- blocks duplicate concurrent promotion on same video
+- enforces XP spend and duration policy
+- records audit + notification on activation
 
-## Running Tests
+## Admin / Moderation Operational Surfaces
+`admin/ops.php` adds:
+- operational counters (pending reports, failed processing, pending point requests, new users, recent uploads)
+- reports queue with review actions and quick links
+- recent audit log browsing surface
+
+## Aggregate / Materialization Strategy
+- **Live compute** for immediate dashboard metrics (fast enough current scale).
+- **Materialized daily rollups** via `creator_rollup.php` into `creator_daily_stats` (and schema for `video_daily_stats`) for future heavier analytics views.
+
+Run rollup manually:
 ```bash
-for f in *.php includes/*.php uploads/*.php tests/*.php; do php -l "$f"; done
+php creator_rollup.php
+```
+
+## Event Taxonomy Notes
+- Product analytics events live in `product_events` (viewer/creator behavior).
+- Security/operational actions remain in `audit_logs`.
+- This keeps analytics and audit concerns separate by design.
+
+## Testing
+```bash
+for f in *.php includes/*.php creator/*.php admin/*.php uploads/*.php tests/*.php; do php -l "$f"; done
 php tests/integration_flows.php
 ```
 
-## Key Limitations
-- Trending/recommendations are deterministic heuristics (no personalization model yet).
-- No full browser E2E harness yet; coverage is integration-wiring level.
-- Playlist reorder drag/drop and chapters are scaffold-ready but not fully implemented.
+## Known Limitations
+- Charts are table-first (no JS chart rendering library yet).
+- Rollup job is CLI/manual and not scheduler-managed by default.
+- Admin workflows are practical but still lightweight compared to full moderation suites.

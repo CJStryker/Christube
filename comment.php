@@ -33,6 +33,9 @@ handleMutation([
     $insert->execute([$videoId, (int)$_SESSION['user_id'], $comment]);
     addExperience($pdo, (int)$_SESSION['user_id'], 5, 'comment_posted');
     trackProductEvent($pdo, 'comment_posted', (int)$_SESSION['user_id'], ['video_id'=>$videoId]);
+    if ((int)$video['user_id'] !== (int)$_SESSION['user_id']) {
+        notifyUser($pdo, (int)$video['user_id'], 'comment_on_video', 'New comment on your video', 'Someone commented on your video.', 'video', $videoId, 'comment-' . $videoId . '-' . ((int)$_SESSION['user_id']));
+    }
 
     setFlash(true, 'Comment posted.');
     header('Location: v.php?s=' . urlencode($video['slug']));

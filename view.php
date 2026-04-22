@@ -81,7 +81,7 @@ if ($currentUserId > 0) {
 <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?php echo e($video['title']); ?> - Christube</title><link rel="stylesheet" href="public/styles.css"><style>.player-wrap video{width:100%;max-height:65vh;border-radius:8px;background:#000}.related-row{display:flex;gap:10px;margin-bottom:12px}.related-thumb{width:140px;height:80px;object-fit:cover;border-radius:8px}.playlist-box{max-height:260px;overflow:auto}.kbd{background:#000;padding:2px 5px;border-radius:4px}</style></head><body>
 <?php
 $nav=['index.php'=>'Home','search.php'=>'Search','trending.php'=>'Trending'];
-if ($currentUserId>0) { $nav=['index.php'=>'Home','subscriptions.php'=>'Subscriptions','history.php'=>'History','playlists.php'=>'Playlists','search.php'=>'Search','profile.php?u='.urlencode($_SESSION['username'])=>'Profile']; }
+if ($currentUserId>0) { $nav=['index.php'=>'Home','subscriptions.php'=>'Subscriptions','history.php'=>'History','playlists.php'=>'Playlists','search.php'=>'Search','creator/dashboard.php'=>'Creator Studio','profile.php?u='.urlencode($_SESSION['username'])=>'Profile']; }
 renderTopbar('Christube',$nav);
 ?>
 <div class="page"><aside class="left"><?php renderPromotedSidebar($pdo); ?></aside><main class="main">
