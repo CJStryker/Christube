@@ -53,6 +53,8 @@ const DONATION_XMR_ADDRESS = '86KNpUKopsJTFUj72PQoLYX7xpsKMiyd6G5BKYoG65FaKzUQqf
 const XP_PER_XMR = 1000;
 const MAX_VIDEO_UPLOAD_BYTES = 157286400; // 150MB
 
+require_once __DIR__ . '/includes/media.php';
+
 $appEnv = env('APP_ENV', 'production');
 
 // -------------------------
@@ -243,6 +245,12 @@ function rateLimitCheck(string $bucket, int $limit = 60, int $windowSeconds = 60
     return (int)$entry['count'] <= $limit;
 }
 
+
+function auditEvent(PDO $pdo, int $actorUserId, string $eventType, array $payload = []): void {
+    $json = json_encode($payload, JSON_UNESCAPED_SLASHES);
+    $pdo->prepare('INSERT INTO audit_logs (actor_user_id, event_type, payload_json) VALUES (?, ?, ?)')->execute([$actorUserId, $eventType, $json]);
+}
+
 function moderationCheck(string $content): bool {
     // TODO(next phase): plug in moderation service/classifier and human review queue.
     return trim($content) !== '';
@@ -412,6 +420,18 @@ function ensureSchema(PDO $pdo): void {
     );
 
     $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS audit_logs (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            actor_user_id INT NULL,
+            event_type VARCHAR(80) NOT NULL,
+            payload_json TEXT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_audit_event (event_type),
+            INDEX idx_audit_actor (actor_user_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+    );
+
+    $pdo->exec(
         "CREATE TABLE IF NOT EXISTS xmr_point_requests (
             id INT AUTO_INCREMENT PRIMARY KEY,
             user_id INT NOT NULL,
@@ -470,4 +490,5 @@ function ensureSchema(PDO $pdo): void {
 }
 
 ensureSchema($pdo);
+ensureMediaSchema($pdo);
 ?>

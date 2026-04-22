@@ -10,7 +10,7 @@ if ($slug === '') {
 $currentUserId = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 0;
 
 $stmt = $pdo->prepare(
-    "SELECT v.id, v.user_id, v.slug, v.title, v.description, v.file_path, v.visibility, v.uploaded_at, u.username,
+    "SELECT v.id, v.user_id, v.slug, v.title, v.description, v.file_path, v.visibility, v.uploaded_at, v.processing_status, v.processing_error, v.playback_asset_id, v.thumbnail_asset_id, u.username,
             SUM(CASE WHEN vr.reaction = 'like' THEN 1 ELSE 0 END) AS likes,
             SUM(CASE WHEN vr.reaction = 'dislike' THEN 1 ELSE 0 END) AS dislikes
      FROM videos v
@@ -31,6 +31,14 @@ if ($video['visibility'] === 'private' && $currentUserId !== (int)$video['user_i
     echo 'This video is private.';
     exit;
 }
+if (($video['processing_status'] ?? '') !== MEDIA_STATUS_READY && $currentUserId !== (int)$video['user_id']) {
+    http_response_code(404);
+    echo 'Video is still processing.';
+    exit;
+}
+
+$playbackUrl = (int)$video['playback_asset_id'] > 0 ? mediaAssetUrl((int)$video['playback_asset_id']) : '';
+$thumbUrl = (int)$video['thumbnail_asset_id'] > 0 ? mediaAssetUrl((int)$video['thumbnail_asset_id']) : '';
 
 $userReaction = null;
 if ($currentUserId > 0) {
@@ -66,7 +74,7 @@ unset($_SESSION['flash']);
 <main class="main">
 <?php if ($flash): ?><div class="flash"><?php echo htmlspecialchars($flash['msg']); ?></div><?php endif; ?>
 <div class="donation-box"><strong>Support Christube</strong><p class="meta">Donation notice: we currently only accept Monero (XMR).</p><code>86KNpUKopsJTFUj72PQoLYX7xpsKMiyd6G5BKYoG65FaKzUQqf4jqLaS6LPUjh8cq5MQTsQh3V2hVRQSqp8j4JGL4Xf9cvq</code></div>
-<div class="panel"><h1><?php echo htmlspecialchars($video['title']); ?></h1><video controls preload="metadata" src="<?php echo htmlspecialchars($video['file_path']); ?>"></video><p><?php echo nl2br(htmlspecialchars($video['description'] ?? '')); ?></p><p class="meta">By <a href="profile.php?u=<?php echo urlencode($video['username']); ?>"><?php echo htmlspecialchars($video['username']); ?></a> · <?php echo htmlspecialchars($video['uploaded_at']); ?></p><p class="meta">Likes: <?php echo (int)$video['likes']; ?> · Dislikes: <?php echo (int)$video['dislikes']; ?></p><p class="meta">Share link: <a href="v.php?s=<?php echo urlencode($video['slug']); ?>">v.php?s=<?php echo htmlspecialchars($video['slug']); ?></a></p><?php if ($currentUserId>0): ?><form action="react.php" method="post" style="display:inline-block;margin-right:8px;"><?php echo csrfInput(); ?><input type="hidden" name="video_id" value="<?php echo (int)$video['id']; ?>"><input type="hidden" name="reaction" value="like"><button type="submit"><?php echo $userReaction==='like'?'Liked ✓':'Like'; ?></button></form><form action="react.php" method="post" style="display:inline-block;"><?php echo csrfInput(); ?><input type="hidden" name="video_id" value="<?php echo (int)$video['id']; ?>"><input type="hidden" name="reaction" value="dislike"><button type="submit"><?php echo $userReaction==='dislike'?'Disliked ✓':'Dislike'; ?></button></form><?php endif; ?></div>
+<div class="panel"><h1><?php echo htmlspecialchars($video['title']); ?></h1><?php if ($thumbUrl): ?><img src="<?php echo htmlspecialchars($thumbUrl); ?>" alt="thumbnail" style="width:100%;max-height:220px;object-fit:cover;border-radius:8px;margin-bottom:10px;"><?php endif; ?><?php if ($playbackUrl): ?><video controls preload="metadata" src="<?php echo htmlspecialchars($playbackUrl); ?>"></video><?php else: ?><p class="meta">This video is currently processing. <?php echo htmlspecialchars((string)($video['processing_error'] ?? '')); ?></p><?php endif; ?><p><?php echo nl2br(htmlspecialchars($video['description'] ?? '')); ?></p><p class="meta">By <a href="profile.php?u=<?php echo urlencode($video['username']); ?>"><?php echo htmlspecialchars($video['username']); ?></a> · <?php echo htmlspecialchars($video['uploaded_at']); ?></p><p class="meta">Likes: <?php echo (int)$video['likes']; ?> · Dislikes: <?php echo (int)$video['dislikes']; ?></p><p class="meta">Share link: <a href="v.php?s=<?php echo urlencode($video['slug']); ?>">v.php?s=<?php echo htmlspecialchars($video['slug']); ?></a></p><?php if ($currentUserId>0): ?><form action="react.php" method="post" style="display:inline-block;margin-right:8px;"><?php echo csrfInput(); ?><input type="hidden" name="video_id" value="<?php echo (int)$video['id']; ?>"><input type="hidden" name="reaction" value="like"><button type="submit"><?php echo $userReaction==='like'?'Liked ✓':'Like'; ?></button></form><form action="react.php" method="post" style="display:inline-block;"><?php echo csrfInput(); ?><input type="hidden" name="video_id" value="<?php echo (int)$video['id']; ?>"><input type="hidden" name="reaction" value="dislike"><button type="submit"><?php echo $userReaction==='dislike'?'Disliked ✓':'Dislike'; ?></button></form><?php endif; ?></div>
 <div class="panel"><h2>Comments</h2><?php if ($currentUserId>0): ?><form action="comment.php" method="post"><?php echo csrfInput(); ?><input type="hidden" name="video_id" value="<?php echo (int)$video['id']; ?>"><textarea name="comment" rows="4" maxlength="2000" required></textarea><p><button type="submit">Post Comment</button></p></form><?php else: ?><p>Please login to comment.</p><?php endif; ?><?php if(!$comments): ?><p>No comments yet.</p><?php else: ?><?php foreach($comments as $comment): ?><div class="panel" style="margin:10px 0;"><p><?php echo nl2br(htmlspecialchars($comment['comment'])); ?></p><p class="meta">— <a href="profile.php?u=<?php echo urlencode($comment['username']); ?>"><?php echo htmlspecialchars($comment['username']); ?></a> at <?php echo htmlspecialchars($comment['created_at']); ?></p></div><?php endforeach; ?><?php endif; ?></div>
 </main>
 <aside class="right"><div class="panel"><h3>More videos to watch</h3><?php if(!$recommended): ?><p class="tiny">No recommendations yet.</p><?php else: ?><?php foreach($recommended as $rec): ?><div style="margin-bottom:10px;border-bottom:1px solid #7a0000;padding-bottom:8px;"><a href="v.php?s=<?php echo urlencode($rec['slug']); ?>"><?php echo htmlspecialchars($rec['title']); ?></a><div class="tiny"><?php echo htmlspecialchars($rec['uploaded_at']); ?></div></div><?php endforeach; ?><?php endif; ?></div></aside>

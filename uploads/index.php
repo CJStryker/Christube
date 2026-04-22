@@ -6,7 +6,7 @@ $currentUserId = (int)$_SESSION['user_id'];
 $currentUsername = $_SESSION['username'];
 
 $stmt = $pdo->prepare(
-    "SELECT v.id, v.slug, v.title, v.description, v.file_path, v.visibility, v.uploaded_at,
+    "SELECT v.id, v.slug, v.title, v.description, v.file_path, v.visibility, v.uploaded_at, v.processing_status, v.processing_error, v.playback_asset_id, v.thumbnail_asset_id,
             SUM(CASE WHEN vr.reaction = 'like' THEN 1 ELSE 0 END) AS likes,
             SUM(CASE WHEN vr.reaction = 'dislike' THEN 1 ELSE 0 END) AS dislikes
      FROM videos v
@@ -41,12 +41,12 @@ body{margin:0;font-family:Arial,sans-serif;background:#050505;color:#00ff66}.top
 <?php if ($flash): ?><div class="flash"><?php echo htmlspecialchars($flash['msg']); ?></div><?php endif; ?>
 <div class="panel"><h2>My uploaded videos</h2><p class="muted">Level <?php echo $level; ?> · XP balance: <?php echo $xp; ?>. Spend XP to promote videos in left sidebar ads.</p>
 <?php if (!$videos): ?><p class="muted">You have not uploaded videos yet.</p><?php else: ?><div class="grid"><?php foreach ($videos as $video): ?><div class="panel" style="margin:0;">
-<video controls preload="metadata" src="../<?php echo htmlspecialchars($video['file_path']); ?>"></video>
+<?php if ((int)$video['thumbnail_asset_id'] > 0): ?><img src="../<?php echo htmlspecialchars(mediaAssetUrl((int)$video['thumbnail_asset_id'])); ?>" alt="thumbnail" style="width:100%;border-radius:8px;max-height:170px;object-fit:cover;"><?php endif; ?><?php if ((int)$video['playback_asset_id'] > 0): ?><video controls preload="metadata" src="../<?php echo htmlspecialchars(mediaAssetUrl((int)$video['playback_asset_id'])); ?>"></video><?php else: ?><p class="tiny">Video is processing and not ready for playback yet.</p><?php endif; ?>
 <h3><?php echo htmlspecialchars($video['title']); ?></h3>
 <p class="muted"><?php echo nl2br(htmlspecialchars($video['description'] ?? '')); ?></p>
 <p class="tiny">Uploaded: <?php echo htmlspecialchars($video['uploaded_at']); ?></p>
 <p class="tiny">Visibility: <strong><?php echo htmlspecialchars($video['visibility']); ?></strong></p>
-<p class="tiny">👍 <?php echo (int)$video['likes']; ?> · 👎 <?php echo (int)$video['dislikes']; ?></p>
+<p class="tiny">Status: <strong><?php echo htmlspecialchars($video['processing_status']); ?></strong></p><p class="tiny">👍 <?php echo (int)$video['likes']; ?> · 👎 <?php echo (int)$video['dislikes']; ?></p><?php if (!empty($video['processing_error'])): ?><p class="tiny">Error: <?php echo htmlspecialchars($video['processing_error']); ?></p><?php endif; ?>
 <p><a href="../v.php?s=<?php echo urlencode($video['slug']); ?>">Watch page</a></p>
 <form action="../promote_video.php" method="post"><?php echo csrfInput(); ?>
     <input type="hidden" name="video_id" value="<?php echo (int)$video['id']; ?>">

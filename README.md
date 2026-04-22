@@ -1,87 +1,75 @@
 # Christube
 
-Christube is a PHP + MySQL video platform prototype with uploads, watch pages, profiles/channels, comments, reactions, follows, XP economy, promotions, and XMR-to-XP request flow.
+Christube is a PHP + MySQL video platform prototype. Phase 4 adds a production-style media ingestion foundation with resumable uploads, storage abstraction, background processing, metadata extraction, transcoding, thumbnail generation, and safe media asset delivery.
 
 ## Stack
-- PHP (server-rendered routes)
+- PHP (server-rendered routes + JSON mutation endpoints)
 - MySQL (PDO)
-- Session-based auth
-- Shared CSS (`public/styles.css`)
+- Session auth + CSRF-protected POST mutations
+- FFmpeg/ffprobe (optional but recommended for processing)
 
 ## Setup
 1. Copy `.env.example` to `.env`.
 2. Set DB credentials.
-3. Serve repository with PHP-enabled web server.
-4. Register account at `register.php`.
+3. Ensure writable media root (`storage/media` by default).
+4. Install FFmpeg/ffprobe for full processing quality.
+5. Serve repository with PHP-enabled web server.
 
-Schema is bootstrapped in `config.php` (`ensureSchema`).
+Schema is bootstrapped in `config.php` via `ensureSchema()` + `ensureMediaSchema()`.
 
 ## Environment Variables
-- `APP_ENV` (`development` / `production`)
-- `DB_HOST`
-- `DB_NAME`
-- `DB_USER`
-- `DB_PASS`
+- `APP_ENV`
+- `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASS`
+- `MEDIA_ROOT` (default: `storage/media`)
+- `MAX_VIDEO_UPLOAD_BYTES` (default 150MB)
+- `UPLOAD_CHUNK_BYTES` (default 5MB)
+- `UPLOAD_SESSION_TTL_HOURS` (default 24)
 
-## Auth & Session
-- Registration (`register.php`) with validation + password hashing.
-- Login (`login.php`) with password verification.
-- Logout (`logout.php`).
-- Session persistence with hardened cookie settings.
-- Protected routes use `requireLogin()`.
+## Phase 4 Upload & Processing Flow
+1. **Start upload session** (`upload_start.php`) with title/description/visibility/file size.
+2. **Chunk upload** (`upload_chunk.php`) pushes ordered chunks tied to session owner.
+3. **Finalize upload** (`upload_finalize.php`) assembles source asset, validates MIME, creates video in `processing` state, and enqueues `process_video` job.
+4. **Worker processing** (`worker_media.php`) handles probing/transcode/thumbnail generation and marks video `ready` or `failed`.
+5. **Asset delivery** (`media_asset.php?id=...`) enforces visibility and readiness before streaming file bytes.
 
-## CSRF + Mutation Middleware
-- CSRF token helpers in `config.php`:
-  - `csrfToken()`
-  - `csrfInput()`
-  - `verifyCsrfToken()`
-- Centralized mutation pipeline via `handleMutation([...], fn)`:
-  - method enforcement (`POST`)
-  - rate-limit hook
-  - CSRF verification
-  - auth guard (configurable)
-  - normalized error flashing + redirect
+Legacy form upload (`upload.php`) still works and internally uses the same pipeline.
 
-All major mutation flows now use this wrapper.
+## Storage Layout
+Under `MEDIA_ROOT`:
+- `tmp_chunks/` upload-session chunk staging
+- `originals/` finalized source files
+- `playback/` normalized MP4 outputs
+- `thumbnails/` generated JPG images
+- `derivatives/` placeholder for future captions/moderation outputs
 
-## User / Profile / Channel Foundation
-- User model supports:
-  - username, display name, email, password hash
-  - bio, avatar URL, banner URL
-  - role, account status, profile visibility
-  - XP and level progression
-- Public profile page (`profile.php`) with channel semantics.
-- Channel compatibility route (`channel.php`) redirects to profile.
-- Profile editing (`edit_profile.php`) for display/bio/avatar/banner/visibility.
+Frontend only receives stable route URLs (`media_asset.php?id=...`), not raw internal paths.
 
-## Features
-- Upload videos, manage privacy, delete own videos.
-- Watch videos, comment, react, follow creators.
-- Timeline pages for comments.
-- Promote videos with XP.
-- XMR point requests + admin verification flow.
+## Job Flow (Dev/Test/Prod)
+- Run worker manually:
+  ```bash
+  php worker_media.php
+  ```
+- Cleanup expired upload sessions/chunks:
+  ```bash
+  php cleanup_uploads.php
+  ```
+- In production, schedule both via cron/supervisor:
+  - worker every minute (or continuously)
+  - cleanup hourly
 
-## Integration Test Checks
-Run:
-
+## Testing
+Run integration checks:
 ```bash
 php tests/integration_flows.php
 ```
 
-Also run syntax lint:
-
+Run syntax lint:
 ```bash
-for f in *.php uploads/*.php; do php -l "$f"; done
+for f in *.php includes/*.php uploads/*.php tests/*.php; do php -l "$f"; done
 ```
 
 ## Known Limitations
-- No true browser E2E tests yet (current integration script validates critical wiring).
-- CSRF is form/session based; no SPA token header flow yet.
-- Schema migrations still run at request boot.
-- Modular service extraction is partial.
-
-## Next Phase Direction
-- Add real HTTP integration/E2E suite.
-- Add CSRF token rotation strategy and strict logout POST-only UI everywhere.
-- Move route logic into service classes and shared controllers.
-- Introduce moderation/report queue + audit logging.
+- Queue backend is DB-polled worker, not distributed queue yet.
+- FFmpeg absence falls back to source copy as playback output.
+- Adaptive streaming manifests (HLS/DASH) are scaffold-ready but not implemented.
+- Chunk integrity uses ordered assembly but does not yet checksum each part.
