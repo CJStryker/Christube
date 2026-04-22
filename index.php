@@ -1,220 +1,53 @@
 <?php
-//require_once 'config.php';
+require_once 'includes/layout.php';
+requireLogin();
 
-// Require user to be logged in
-//requireLogin();
+$current = currentUser();
+$currentUserId = (int)$current['id'];
+$currentUsername = $current['username'];
 
-//$username = $_SESSION['username'];
-$username = 'Zesty';
+$userStmt = $pdo->prepare('SELECT experience_points FROM users WHERE id = ?');
+$userStmt->execute([$currentUserId]);
+$xp = (int)$userStmt->fetchColumn();
+$level = getLevelFromXp($xp);
+$nextLevelXp = getXpForNextLevel($xp);
+
+$stmt = $pdo->prepare(
+    "SELECT v.id, v.user_id, v.slug, v.title, v.description, v.file_path, v.visibility, v.uploaded_at, u.username,
+            SUM(CASE WHEN vr.reaction = 'like' THEN 1 ELSE 0 END) AS likes,
+            SUM(CASE WHEN vr.reaction = 'dislike' THEN 1 ELSE 0 END) AS dislikes
+     FROM videos v
+     INNER JOIN users u ON u.id = v.user_id
+     LEFT JOIN video_reactions vr ON vr.video_id = v.id
+     WHERE v.visibility = 'public' OR v.user_id = ?
+     GROUP BY v.id
+     ORDER BY v.uploaded_at DESC
+     LIMIT 30"
+);
+$stmt->execute([$currentUserId]);
+$videos = $stmt->fetchAll();
 ?>
-
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Image Upload Form</title>
-  
-  <style>
-    /* Resetting default styles */
-    body, html {
-      margin: 0;
-      padding: 0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      min-height: 100vh;
-    }
-
-    /* Header with user info and logout */
-    .header {
-      background: rgba(255, 255, 255, 0.95);
-      padding: 1rem 2rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    }
-
-    .user-info {
-      color: #333;
-      font-weight: 600;
-    }
-
-    .logout-btn {
-      background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
-      color: white;
-      padding: 0.5rem 1rem;
-      text-decoration: none;
-      border-radius: 5px;
-      font-weight: 500;
-      transition: transform 0.2s ease;
-    }
-
-    .logout-btn:hover {
-      transform: translateY(-2px);
-    }
-
-    /* Styling the container */
-    .container {
-      width: 100%;
-      max-width: 600px;
-      margin: 50px auto;
-      padding: 30px;
-      background: rgba(255, 255, 255, 0.95);
-      border-radius: 15px;
-      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
-      backdrop-filter: blur(10px);
-    }
-
-    h1 {
-      text-align: center;
-      color: #333;
-      margin-bottom: 10px;
-      font-weight: 600;
-    }
-
-    .welcome-text {
-      text-align: center;
-      color: #667eea;
-      font-weight: 500;
-      margin-bottom: 20px;
-    }
-
-    p {
-      font-size: 16px;
-      color: #555;
-      text-align: center;
-    }
-
-    input[type="file"] {
-      width: 100%;
-      padding: 12px;
-      margin: 15px 0;
-      border-radius: 8px;
-      border: 2px solid #e1e1e1;
-      font-size: 14px;
-      transition: border-color 0.3s ease;
-    }
-
-    input[type="file"]:focus {
-      outline: none;
-      border-color: #667eea;
-    }
-
-    input[type="submit"] {
-      width: 100%;
-      padding: 15px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      border: none;
-      border-radius: 8px;
-      font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: transform 0.2s ease;
-    }
-
-    input[type="submit"]:hover {
-      transform: translateY(-2px);
-    }
-
-    .image-preview {
-      text-align: center;
-      margin: 20px 0;
-      padding: 20px;
-      background: #f8f9ff;
-      border-radius: 8px;
-      border: 2px dashed #e1e1e1;
-    }
-
-    .image-preview img {
-      max-width: 100%;
-      max-height: 300px;
-      object-fit: contain;
-      border-radius: 8px;
-      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-    }
-
-    /* Button to view uploads */
-    .view-uploads-button {
-      width: 100%;
-      padding: 15px;
-      background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
-      color: white;
-      border: none;
-      border-radius: 8px;
-      font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
-      margin-top: 20px;
-      transition: transform 0.2s ease;
-      text-decoration: none;
-      display: inline-block;
-      text-align: center;
-    }
-
-    .view-uploads-button:hover {
-      transform: translateY(-2px);
-    }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <div class="user-info">Welcome, <?php echo htmlspecialchars($username); ?>!</div>
-    <a href="logout.php" class="logout-btn">Logout</a>
-  </div>
-
-  <div class="container">
-    <h1>Upload an Image</h1>
-    <div class="welcome-text">Your Personal Image Gallery</div>
-    <p>Select an image file to upload. Make sure it is in JPG, JPEG, or PNG format and less than 5MB.</p>
-    
-    <form action="upload.php" method="post" enctype="multipart/form-data" id="uploadForm">
-      <input type="file" name="fileToUpload" id="fileToUpload" accept="image/jpeg, image/png, image/jpg" required>
-      
-      <!-- Image preview will be shown here -->
-      <div class="image-preview" id="imagePreview">
-        <p>No image selected yet.</p>
-      </div>
-      
-      <input type="submit" value="Upload Image" name="submit">
-    </form>
-    
-    <!-- Button to view uploaded images -->
-    <a style="display: block; width: 97%; text-align: center; padding: 10px; background-color: blue; color: white; text-decoration: none;" href="uploads/" class="view-uploads-button">View My Uploaded Images</a>
-  </div>
-
-  <script>
-    const fileInput = document.getElementById('fileToUpload');
-    const imagePreview = document.getElementById('imagePreview');
-    
-    // Preview image before uploading
-    fileInput.addEventListener('change', function (event) {
-      const file = event.target.files[0];
-      if (file) {
-        // Check file type
-        const fileType = file.type;
-        if (!fileType.startsWith('image/')) {
-          alert("Please upload a valid image file (JPEG, PNG).");
-          fileInput.value = '';  // Clear the file input
-          imagePreview.innerHTML = '<p>No image selected yet.</p>';
-          return;
-        }
-        // Check file size (max 5MB)
-        if (file.size > 5 * 1024 * 1024) {
-          alert("The file size should be less than 5MB.");
-          fileInput.value = '';  // Clear the file input
-          imagePreview.innerHTML = '<p>No image selected yet.</p>';
-          return;
-        }
-        // Create image URL and display the image preview
-        const reader = new FileReader();
-        reader.onload = function (e) {
-          imagePreview.innerHTML = '<img src="' + e.target.result + '" alt="Image Preview">';
-        };
-        reader.readAsDataURL(file);
-      }
-    });
-  </script>
-</body>
-</html>
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Christube</title><link rel="stylesheet" href="public/styles.css"></head><body>
+<?php
+$navLinks = [
+    'profile.php?u=' . urlencode($currentUsername) => 'Profile',
+    'uploads/index.php' => 'My Uploads',
+    'comments_timeline.php' => 'Comments Timeline',
+    'my_video_comments.php' => 'My Video Comments',
+    'buy_points.php' => 'Buy Points',
+];
+if ($currentUsername === 'Zesty') {
+    $navLinks['admin_verify_points.php'] = 'Verify Points';
+}
+renderTopbar('Christube', $navLinks);
+?>
+<form method="post" action="logout.php" style="display:inline-block; margin:8px 16px;"><?php echo csrfInput(); ?><button type="submit">Logout</button></form>
+<div class="page">
+<?php renderPromotedSidebar($pdo); ?>
+<main class="main">
+<?php renderFlashBlock(); ?>
+<div class="panel"><h3>Your Progress</h3><p class="muted">Level <?php echo $level; ?> · XP: <?php echo $xp; ?> / <?php echo $nextLevelXp; ?> to next level.</p><p class="tiny">Earn XP by uploading (+25), commenting (+5), reacting (+2). Spend XP on promotions.</p></div>
+<div class="panel"><h2>Upload a video</h2><form action="upload.php" method="post" enctype="multipart/form-data"><?php echo csrfInput(); ?><label>Title</label><input type="text" name="title" maxlength="150" required><label>Description</label><textarea name="description" rows="3" maxlength="2000"></textarea><label>Privacy</label><select name="visibility" required><option value="public">Public</option><option value="private">Private</option></select><label>Video file</label><input type="file" name="videoFile" accept="video/mp4,video/webm,video/ogg,video/quicktime,.mp4,.webm,.ogg,.mov" required><button type="submit" name="submit">Upload Video</button></form></div>
+<div class="panel"><h2>Recently uploaded videos</h2><?php if(!$videos): ?><p class="muted">No videos uploaded yet.</p><?php else: ?><div class="grid"><?php foreach($videos as $video): ?><div class="panel" style="margin:0;"><video controls preload="metadata" src="<?php echo e($video['file_path']); ?>"></video><h3><?php echo e($video['title']); ?></h3><p class="muted"><?php echo nl2br(e($video['description'] ?? '')); ?></p><p class="tiny">By <a href="profile.php?u=<?php echo urlencode($video['username']); ?>"><?php echo e($video['username']); ?></a> · <?php echo e($video['uploaded_at']); ?></p><p class="tiny">👍 <?php echo (int)$video['likes']; ?> · 👎 <?php echo (int)$video['dislikes']; ?></p><p><a href="v.php?s=<?php echo urlencode($video['slug']); ?>">Watch page</a></p><?php if ((int)$video['user_id'] === $currentUserId): ?><form action="update_visibility.php" method="post"><?php echo csrfInput(); ?><input type="hidden" name="video_id" value="<?php echo (int)$video['id']; ?>"><select name="visibility"><option value="public" <?php echo $video['visibility']==='public'?'selected':''; ?>>Public</option><option value="private" <?php echo $video['visibility']==='private'?'selected':''; ?>>Private</option></select><button type="submit">Update privacy</button></form><?php endif; ?></div><?php endforeach; ?></div><?php endif; ?></div>
+</main></div>
+</body></html>
