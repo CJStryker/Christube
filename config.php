@@ -64,12 +64,14 @@ $appEnv = env('APP_ENV', 'production');
 // -------------------------
 // DB setup
 // -------------------------
-$dbHost = env('DB_HOST', 'localhost');
+$dbHost = env('DB_HOST', '127.0.0.1');
+$dbPort = env('DB_PORT', '3306');
 $dbName = env('DB_NAME', 'user_auth');
-$dbUser = env('DB_USER', 'user');
+$dbUser = env('DB_USER', 'root');
 $dbPass = env('DB_PASS', '');
 
-$dsn = "mysql:host={$dbHost};dbname={$dbName};charset=utf8mb4";
+$dsnOverride = env('DB_DSN');
+$dsn = $dsnOverride ?: "mysql:host={$dbHost};port={$dbPort};dbname={$dbName};charset=utf8mb4";
 $options = [
     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
@@ -79,10 +81,12 @@ $options = [
 try {
     $pdo = new PDO($dsn, $dbUser, $dbPass, $options);
 } catch (PDOException $e) {
+    $hint = 'Database connection failed. Check DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASS (or DB_DSN) in .env.';
     if ($appEnv === 'development') {
-        die('Connection failed: ' . $e->getMessage());
+        die($hint . ' PDO says: ' . $e->getMessage());
     }
-    die('Database connection failed.');
+    error_log('Christube DB connection error: ' . $e->getMessage());
+    die($hint);
 }
 
 // -------------------------

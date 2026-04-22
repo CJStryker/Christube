@@ -7,7 +7,7 @@ if ($slug === '') { header('Location: index.php'); exit; }
 $currentUserId = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 0;
 $playlistSlug = trim((string)($_GET['list'] ?? ''));
 
-$stmt = $pdo->prepare("SELECT v.id, v.user_id, v.slug, v.title, v.description, v.visibility, v.uploaded_at, v.processing_status, v.processing_error,
+$stmt = $pdo->prepare("SELECT v.id, v.user_id, v.slug, v.title, v.description, v.file_path, v.visibility, v.uploaded_at, v.processing_status, v.processing_error,
     v.playback_asset_id, v.thumbnail_asset_id, v.duration_seconds, u.username,
     SUM(CASE WHEN vr.reaction='like' THEN 1 ELSE 0 END) AS likes,
     SUM(CASE WHEN vr.reaction='dislike' THEN 1 ELSE 0 END) AS dislikes,
@@ -29,6 +29,15 @@ trackProductEvent($pdo, 'watch_start', $currentUserId ?: null, ['video_id'=>(int
 
 $playbackUrl = (int)$video['playback_asset_id'] > 0 ? mediaAssetUrl((int)$video['playback_asset_id']) : '';
 $thumbUrl = (int)$video['thumbnail_asset_id'] > 0 ? mediaAssetUrl((int)$video['thumbnail_asset_id']) : '';
+
+$legacyPath = trim((string)($video['file_path'] ?? ''));
+if ($playbackUrl === '' && $legacyPath !== '') {
+    if (preg_match('/^https?:\/\//i', $legacyPath) || str_starts_with($legacyPath, '/')) {
+        $playbackUrl = $legacyPath;
+    } else {
+        $playbackUrl = $legacyPath;
+    }
+}
 
 $userReaction = null;
 if ($currentUserId > 0) {
